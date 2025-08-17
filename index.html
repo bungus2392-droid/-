@@ -905,9 +905,13 @@
                               <textarea value={q.text} onChange={(e) => handleUpdateQuestion(qIndex, 'text', e.target.value)} placeholder="نص السؤال" className="w-full p-2 border rounded-lg mb-2 bg-white dark:bg-slate-600"></textarea>
                               <div 
                                 onPaste={(e) => handlePasteImage(e, qIndex)}
-                                className="w-full p-4 border-2 border-dashed rounded-lg text-center text-slate-400"
+                                className="w-full p-4 border-2 border-dashed rounded-lg text-center text-slate-400 mb-4"
                               >
-                                {q.imageUrl ? <img src={q.imageUrl} className="w-32 h-32 object-cover rounded-lg my-2 mx-auto" alt="معاينة السؤال"/> : 'أو قم بلصق صورة هنا (Ctrl+V)'}
+                                {q.imageUrl ? <img src={q.imageUrl} className="w-32 h-32 object-cover rounded-lg my-2 mx-auto" alt="معاينة السؤال"/> : 'ألصق صورة هنا (Ctrl+V)'}
+                                <label className="cursor-pointer text-blue-500 hover:underline mt-2 block">
+                                  أو اختر ملف صورة
+                                  <input type="file" accept="image/*" onChange={(e) => handleManualImageUpload(e, qIndex, 'question')} className="hidden"/>
+                                </label>
                               </div>
                               {q.options.map((opt, oIndex) => (
                                   <div key={opt.id} className="flex items-center mb-2 bg-white dark:bg-slate-600 p-2 rounded-lg">
