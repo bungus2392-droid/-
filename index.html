@@ -31,6 +31,20 @@
       darkMode: 'class',
     }
   </script>
+  <!-- MathJax Configuration -->
+  <script>
+    MathJax = {
+      tex: {
+        inlineMath: [['$', '$'], ['\\(', '\\)']]
+      },
+      svg: {
+        fontCache: 'global'
+      }
+    };
+  </script>
+  <script type="text/javascript" id="MathJax-script" async
+    src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-svg.js">
+  </script>
 </head>
 <body class="bg-slate-100 dark:bg-slate-900">
   <div id="root"></div>
@@ -43,8 +57,8 @@
   <!-- Firebase SDK -->
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
-    import { getFirestore, doc, onSnapshot, setDoc } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
-    window.firebase = { initializeApp, getFirestore, doc, onSnapshot, setDoc };
+    import { getFirestore, doc, onSnapshot, setDoc, collection, addDoc, updateDoc, deleteDoc } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+    window.firebase = { initializeApp, getFirestore, doc, onSnapshot, setDoc, collection, addDoc, updateDoc, deleteDoc };
   </script>
 
   <script type="text/babel">
@@ -71,18 +85,21 @@
         console.error("Firebase initialization error:", e);
     }
 
-    const DATA_DOC_REF = db ? window.firebase.doc(db, "quizData", "main") : null;
+    const MathComponent = ({ text }) => {
+      const ref = useRef(null);
+      useEffect(() => {
+        if (window.MathJax && ref.current) {
+          window.MathJax.typesetPromise([ref.current]);
+        }
+      }, [text]);
+
+      return <span ref={ref}>{text}</span>;
+    };
 
     function App() {
-      const initialData = {
-        testsData: { 'كمي': [], 'لفظي': [] },
-        usersData: []
-      };
-
-      const [appData, setAppData] = useState(initialData);
+      const [testsData, setTestsData] = useState({ 'كمي': [], 'لفظي': [] });
+      const [usersData, setUsersData] = useState([]);
       const [isDataLoaded, setIsDataLoaded] = useState(false);
-      
-      const { testsData, usersData } = appData;
 
       useEffect(() => {
         if (!db) {
@@ -90,51 +107,36 @@
             setIsDataLoaded(true);
             return;
         }
-        const unsubscribe = window.firebase.onSnapshot(DATA_DOC_REF, (doc) => {
-          if (doc.exists()) {
-            setAppData(doc.data());
-          } else {
-            window.firebase.setDoc(DATA_DOC_REF, initialData);
-          }
-          setIsDataLoaded(true);
-        }, (error) => {
-          console.error("Error fetching data from Firebase:", error);
-          alert("حدث خطأ أثناء الاتصال بقاعدة البيانات.");
-          setIsDataLoaded(true);
+        const unsubscribeTests = window.firebase.onSnapshot(window.firebase.collection(db, "tests"), (snapshot) => {
+            const newTestsData = { 'كمي': [], 'لفظي': [] };
+            snapshot.forEach(doc => {
+                const test = { id: doc.id, ...doc.data() };
+                if (newTestsData[test.category]) {
+                    newTestsData[test.category].push(test);
+                }
+            });
+            setTestsData(newTestsData);
         });
 
-        return () => unsubscribe();
+        const unsubscribeUsers = window.firebase.onSnapshot(window.firebase.collection(db, "users"), (snapshot) => {
+            const newUsersData = [];
+            snapshot.forEach(doc => {
+                newUsersData.push({ id: doc.id, ...doc.data() });
+            });
+            setUsersData(newUsersData);
+            setIsDataLoaded(true);
+        });
+
+        return () => {
+            unsubscribeTests();
+            unsubscribeUsers();
+        };
       }, []);
-
-      const saveDataToFirebase = useCallback(async (newData) => {
-        if (!db) return;
-        try {
-          await window.firebase.setDoc(DATA_DOC_REF, newData);
-        } catch (error) {
-          console.error("Error saving data to Firebase:", error);
-          alert("فشل حفظ البيانات في قاعدة البيانات.");
-        }
-      }, []);
-
-      const setTestsData = (updater) => {
-        const newTestsData = typeof updater === 'function' ? updater(appData.testsData) : updater;
-        const newData = { ...appData, testsData: newTestsData };
-        setAppData(newData);
-        saveDataToFirebase(newData);
-      };
-
-      const setUsersData = (updater) => {
-        const newUsersData = typeof updater === 'function' ? updater(appData.usersData) : updater;
-        const newData = { ...appData, usersData: newUsersData };
-        setAppData(newData);
-        saveDataToFirebase(newData);
-      };
 
       const [currentPage, setCurrentPage] = useState('landing');
       const [devPage, setDevPage] = useState('dashboard');
       const [loginRole, setLoginRole] = useState(null);
       const [currentUser, setCurrentUser] = useState(null);
-      const [currentUsername, setCurrentUsername] = useState(null);
       const [selectedTest, setSelectedTest] = useState(null);
       const [answers, setAnswers] = useState({});
       const [timer, setTimer] = useState(0);
@@ -197,14 +199,14 @@
         setLoginError('');
         if (loginRole === 'teacher') {
           if (devUsername === DEV_USERNAME && devPassword === DEV_PASSWORD) {
-            setCurrentUser('teacher');
+            setCurrentUser({username: DEV_USERNAME, role: 'superadmin'});
             setCurrentPage('dashboard');
             setDevPage('dashboard');
             return;
           }
           const developer = usersData.find(u => u.role === 'teacher' && u.username === devUsername && u.password === devPassword);
           if (developer) {
-            setCurrentUser('teacher');
+            setCurrentUser(developer);
             setCurrentPage('dashboard');
             setDevPage('dashboard');
           } else {
@@ -213,8 +215,7 @@
         } else if (loginRole === 'student') {
           const user = usersData.find(u => u.username === userUsernameInput && u.accessCode === userAccessCodeInput);
           if (user) {
-            setCurrentUser('student');
-            setCurrentUsername(user.username);
+            setCurrentUser(user);
             setCurrentPage('dashboard');
           } else {
             setLoginError('اسم المستخدم أو رمز الدخول غير صحيح.');
@@ -222,7 +223,7 @@
         }
       };
       
-      const handleGenerateAccessCode = (username) => {
+      const handleGenerateAccessCode = async (username) => {
         if (!username) {
           alert('الرجاء إدخال اسم المستخدم أولاً.');
           return;
@@ -242,92 +243,61 @@
           role: 'student',
           allowedSections: ['كمي', 'لفظي']
         };
-        setUsersData(prevUsers => [...prevUsers, newUser]);
+        
+        await window.firebase.addDoc(window.firebase.collection(db, "users"), newUser);
         setDevUsernameToGenerate('');
         alert(`تم توليد رمز دخول جديد للمستخدم ${username}: ${newCode}`);
       };
 
-      const handleDeleteUser = (usernameToDelete) => {
-        if(confirm(`هل أنت متأكد من رغبتك في حذف المستخدم ${usernameToDelete}؟ لا يمكن التراجع عن هذا الإجراء.`)){
-            setUsersData(prevUsers => prevUsers.filter(user => user.username !== usernameToDelete));
+      const handleDeleteUser = async (userId) => {
+        if(confirm(`هل أنت متأكد من رغبتك في حذف هذا المستخدم؟ لا يمكن التراجع عن هذا الإجراء.`)){
+            await window.firebase.deleteDoc(window.firebase.doc(db, "users", userId));
         }
       };
 
-      const handleResetSingleTestAttempts = (username, testId) => {
-         if(confirm(`هل أنت متأكد من رغبتك في تجديد محاولة هذا الاختبار للمستخدم ${username}؟`)){
-            setUsersData(prevUsers =>
-              prevUsers.map(user => {
-                if (user.username === username) {
-                  const newAttemptsLeft = { ...user.attemptsLeft };
-                  delete newAttemptsLeft[testId];
-                  return { ...user, attemptsLeft: newAttemptsLeft };
-                }
-                return user;
-              })
-            );
-            alert(`تم تجديد المحاولة للمستخدم ${username}.`);
+      const handleResetSingleTestAttempts = async (userId, testId) => {
+         if(confirm(`هل أنت متأكد من رغبتك في تجديد محاولة هذا الاختبار لهذا المستخدم؟`)){
+            const userToUpdate = usersData.find(u => u.id === userId);
+            const newAttemptsLeft = { ...userToUpdate.attemptsLeft };
+            delete newAttemptsLeft[testId];
+            await window.firebase.updateDoc(window.firebase.doc(db, "users", userId), { attemptsLeft: newAttemptsLeft });
+            alert(`تم تجديد المحاولة للمستخدم.`);
         }
       };
       
-      const handleToggleUserRole = (username) => {
-        setUsersData(prevUsers =>
-          prevUsers.map(user => {
-            if (user.username === username) {
-              const newRole = user.role === 'teacher' ? 'student' : 'teacher';
-              let updatedUser = { ...user, role: newRole };
+      const handleToggleUserRole = async (userId) => {
+        const userToUpdate = usersData.find(u => u.id === userId);
+        const newRole = userToUpdate.role === 'teacher' ? 'student' : 'teacher';
+        let updateData = { role: newRole };
 
-              if (newRole === 'teacher') {
-                const password = prompt(`الرجاء تعيين كلمة مرور للمطور الجديد: ${username}`);
-                if (password && password.length > 0) {
-                  updatedUser.password = password;
-                  alert(`تم ترقية المستخدم ${username} إلى مطور.`);
-                } else {
-                  alert('تم إلغاء الترقية لعدم إدخال كلمة مرور.');
-                  return user;
-                }
-              } else {
-                delete updatedUser.password;
-                alert(`تم تغيير صلاحية المستخدم ${username} إلى طالب.`);
-              }
-              return updatedUser;
-            }
-            return user;
-          })
-        );
+        if (newRole === 'teacher') {
+          const password = prompt(`الرجاء تعيين كلمة مرور للمطور الجديد: ${userToUpdate.username}`);
+          if (password && password.length > 0) {
+            updateData.password = password;
+            alert(`تم ترقية المستخدم ${userToUpdate.username} إلى مطور.`);
+          } else {
+            alert('تم إلغاء الترقية لعدم إدخال كلمة مرور.');
+            return;
+          }
+        } else {
+          updateData.password = null;
+          alert(`تم تغيير صلاحية المستخدم ${userToUpdate.username} إلى طالب.`);
+        }
+        await window.firebase.updateDoc(window.firebase.doc(db, "users", userId), updateData);
       };
       
-      const handleSectionPermissionChange = (username, section) => {
-        setUsersData(prevUsers => 
-            prevUsers.map(user => {
-                if (user.username === username) {
-                    const allowed = user.allowedSections || ['كمي', 'لفظي'];
-                    const newAllowedSections = allowed.includes(section)
-                        ? allowed.filter(s => s !== section)
-                        : [...allowed, section];
-                    return { ...user, allowedSections: newAllowedSections };
-                }
-                return user;
-            })
-        );
+      const handleSectionPermissionChange = async (userId, section) => {
+        const userToUpdate = usersData.find(u => u.id === userId);
+        const allowed = userToUpdate.allowedSections || ['كمي', 'لفظي'];
+        const newAllowedSections = allowed.includes(section)
+            ? allowed.filter(s => s !== section)
+            : [...allowed, section];
+        await window.firebase.updateDoc(window.firebase.doc(db, "users", userId), { allowedSections: newAllowedSections });
     };
 
-      const handleDeleteTest = (testId, category) => {
+      const handleDeleteTest = async (testId) => {
         if(confirm('هل أنت متأكد من رغبتك في حذف هذا الاختبار؟ سيتم حذف جميع درجات الطلاب المتعلقة به.')){
-            setTestsData(prevTests => {
-              const newTestsData = JSON.parse(JSON.stringify(prevTests));
-              newTestsData[category] = newTestsData[category].filter(test => test.id !== testId);
-              return newTestsData;
-            });
-
-            setUsersData(prevUsers => {
-                return prevUsers.map(user => {
-                    const newScores = {...user.scores};
-                    delete newScores[testId];
-                    const newAttemptsLeft = {...user.attemptsLeft};
-                    delete newAttemptsLeft[testId];
-                    return {...user, scores: newScores, attemptsLeft: newAttemptsLeft};
-                });
-            });
+            await window.firebase.deleteDoc(window.firebase.doc(db, "tests", testId));
         }
       };
 
@@ -349,7 +319,7 @@
         const shuffledQuestions = [...test.questions].sort(() => Math.random() - 0.5);
         const testWithShuffledQuestions = { ...test, questions: shuffledQuestions };
 
-        const currentUserData = usersData.find(u => u.username === currentUsername);
+        const currentUserData = usersData.find(u => u.username === currentUser.username);
         if (!currentUserData) {
           alert("حدث خطأ في بيانات المستخدم.");
           return;
@@ -402,45 +372,37 @@
         });
       };
 
-      const handleSubmitTest = () => {
+      const handleSubmitTest = async () => {
         if (quizSubmitted) return;
         setQuizSubmitted(true);
 
         const score = selectedTest.questions.filter(q => answers[q.id] === q.correctAnswer).length;
         const timeTaken = selectedTest.duration * 60 - timer;
         
-        setUsersData(prevUsers => {
-          return prevUsers.map(user => {
-            if (user.username === currentUsername) {
-              const newAttemptsLeft = (user.attemptsLeft[selectedTest.id] !== undefined
-                ? user.attemptsLeft[selectedTest.id]
-                : selectedTest.maxAttempts) - 1;
-                
-              const newScoreData = {
-                score: score,
-                total: selectedTest.questions.length,
-                date: new Date().toLocaleDateString('ar-SA'),
-                time: new Date().toLocaleTimeString('ar-SA'),
-                timeTaken: timeTaken
-              };
+        const userToUpdate = usersData.find(user => user.username === currentUser.username);
+        const userRef = window.firebase.doc(db, "users", userToUpdate.id);
 
-              const updatedScores = { ...user.scores };
-              if (!updatedScores[selectedTest.id]) {
-                updatedScores[selectedTest.id] = [];
-              }
-              updatedScores[selectedTest.id].push(newScoreData);
-                
-              return {
-                ...user,
-                scores: updatedScores,
-                attemptsLeft: {
-                  ...user.attemptsLeft,
-                  [selectedTest.id]: newAttemptsLeft
-                }
-              };
-            }
-            return user;
-          });
+        const newAttemptsLeft = (userToUpdate.attemptsLeft[selectedTest.id] !== undefined
+            ? userToUpdate.attemptsLeft[selectedTest.id]
+            : selectedTest.maxAttempts) - 1;
+            
+        const newScoreData = {
+            score: score,
+            total: selectedTest.questions.length,
+            date: new Date().toLocaleDateString('ar-SA'),
+            time: new Date().toLocaleTimeString('ar-SA'),
+            timeTaken: timeTaken
+        };
+
+        const updatedScores = { ...userToUpdate.scores };
+        if (!updatedScores[selectedTest.id]) {
+            updatedScores[selectedTest.id] = [];
+        }
+        updatedScores[selectedTest.id].push(newScoreData);
+
+        await window.firebase.updateDoc(userRef, {
+            scores: updatedScores,
+            [`attemptsLeft.${selectedTest.id}`]: newAttemptsLeft
         });
 
         setCurrentPage('results');
@@ -499,15 +461,21 @@
         setNewTestQuestions(updatedQuestions);
       };
       
+      const handleDeleteQuestion = (qIndex) => {
+        const updatedQuestions = [...newTestQuestions];
+        updatedQuestions.splice(qIndex, 1);
+        setNewTestQuestions(updatedQuestions);
+      };
+      
       const handleUpdateCorrectAnswer = (qIndex, value) => {
         const updatedQuestions = [...newTestQuestions];
         updatedQuestions[qIndex].correctAnswer = value;
         setNewTestQuestions(updatedQuestions);
       };
 
-      const handleUpdateOption = (qIndex, oIndex, value) => {
+      const handleUpdateOption = (qIndex, oIndex, field, value) => {
         const updatedQuestions = [...newTestQuestions];
-        updatedQuestions[qIndex].options[oIndex].text = value;
+        updatedQuestions[qIndex].options[oIndex][field] = value;
         setNewTestQuestions(updatedQuestions);
       };
       
@@ -521,45 +489,26 @@
           setEditingTestId(null);
       }
 
-      const handleSaveNewTest = () => {
+      const handleSaveNewTest = async () => {
         if (!newTestTitle || !newTestDuration || !newTestMaxAttempts || newTestQuestions.length === 0) {
             alert('الرجاء إكمال جميع الحقول.');
             return;
         }
+        
+        const newTest = {
+          title: newTestTitle,
+          category: newTestCategory,
+          duration: parseInt(newTestDuration, 10),
+          maxAttempts: parseInt(newTestMaxAttempts, 10),
+          prerequisitePercentage: parseInt(newTestPrerequisite, 10) || 0,
+          questions: newTestQuestions
+        };
 
         if(editingTestId) {
-            setTestsData(prev => {
-              const newTestsData = JSON.parse(JSON.stringify(prev));
-              for (const category in newTestsData) {
-                  const testIndex = newTestsData[category].findIndex(t => t.id === editingTestId);
-                  if (testIndex !== -1) {
-                      newTestsData[category][testIndex] = {
-                          ...newTestsData[category][testIndex],
-                          title: newTestTitle,
-                          duration: parseInt(newTestDuration, 10),
-                          maxAttempts: parseInt(newTestMaxAttempts, 10),
-                          prerequisitePercentage: parseInt(newTestPrerequisite, 10) || 0,
-                          questions: newTestQuestions
-                      };
-                      break;
-                  }
-              }
-              return newTestsData;
-            });
+            await window.firebase.setDoc(window.firebase.doc(db, "tests", editingTestId), newTest);
             alert('تم تحديث الاختبار بنجاح!');
         } else {
-            const newTest = {
-              id: Date.now(),
-              title: newTestTitle,
-              duration: parseInt(newTestDuration, 10),
-              maxAttempts: parseInt(newTestMaxAttempts, 10),
-              prerequisitePercentage: parseInt(newTestPrerequisite, 10) || 0,
-              questions: newTestQuestions
-            };
-            setTestsData(prev => ({
-              ...prev,
-              [newTestCategory]: [...(prev[newTestCategory] || []), newTest]
-            }));
+            await window.firebase.addDoc(window.firebase.collection(db, "tests"), newTest);
             alert('تم حفظ الاختبار الجديد بنجاح!');
         }
         resetCreateTestForm();
@@ -574,23 +523,6 @@
         setNewTestQuestions(JSON.parse(JSON.stringify(testToEdit.questions)));
         setNewTestCategory(category);
         setShowCreateTestForm(true);
-      };
-      
-      const handlePasteImage = (e, qIndex) => {
-        const items = e.clipboardData.items;
-        for (let i = 0; i < items.length; i++) {
-            if (items[i].type.indexOf('image') !== -1) {
-                const file = items[i].getAsFile();
-                const reader = new FileReader();
-                reader.onloadend = () => {
-                    const updatedQuestions = [...newTestQuestions];
-                    updatedQuestions[qIndex].imageUrl = reader.result;
-                    setNewTestQuestions(updatedQuestions);
-                };
-                reader.readAsDataURL(file);
-                e.preventDefault();
-            }
-        }
       };
       
       const handleFileSelect = (e) => {
@@ -763,15 +695,10 @@
       
       const renderLandingPage = () => (
         <div className="flex flex-col items-center justify-center min-h-screen animated-gradient text-center p-4 relative" dir="rtl">
-          <div className="absolute top-8 bg-white p-2 rounded-full shadow-lg transition-transform duration-300 ease-in-out hover:scale-110">
-              <img 
-                src="https://storage.googleapis.com/yaschools/backend/media/school/logos/-j1W4n4lL-RzSZ70krDWF1RQV8cjbsJW.jpg" 
-                alt="شعار" 
-                className="h-40 w-40 rounded-full object-contain"
-                onError={(e) => { e.target.onerror = null; e.target.src = "https://placehold.co/160x160/FFFFFF/000000?text=شعار" }}
-              />
+          <div className="css-tricks mb-8">
+            <div></div><div></div><div></div><div></div><div></div><div></div>
           </div>
-          <h1 className="text-5xl font-bold text-white mb-4 drop-shadow-lg mt-56">أهلاً بك في منصة الاختبارات</h1>
+          <h1 className="text-5xl font-bold text-white mb-4 drop-shadow-lg">أهلاً بك في منصة الاختبارات</h1>
           <p className="text-xl text-gray-200 mb-12 drop-shadow-md">اختر طريقة الدخول للمتابعة</p>
           <div className="flex flex-col space-y-6 items-center">
              <button 
@@ -896,29 +823,35 @@
                       {newTestQuestions.map((q, qIndex) => (
                           <div 
                             key={q.id} 
-                            className="bg-slate-50 dark:bg-slate-700 p-4 rounded-lg mb-4 border dark:border-slate-600 cursor-grab"
-                            draggable
-                            onDragStart={(e) => handleDragStart(e, qIndex)}
-                            onDragEnter={(e) => handleDragEnter(e, qIndex)}
+                            className="bg-slate-50 dark:bg-slate-700 p-4 rounded-lg mb-4 border dark:border-slate-600"
                           >
+                            <div 
+                                className="cursor-grab"
+                                draggable
+                                onDragStart={(e) => handleDragStart(e, qIndex)}
+                                onDragEnter={(e) => handleDragEnter(e, qIndex)}
+                            >
                               <h4 className="font-bold mb-2">السؤال {qIndex + 1}</h4>
                               <textarea value={q.text} onChange={(e) => handleUpdateQuestion(qIndex, 'text', e.target.value)} placeholder="نص السؤال" className="w-full p-2 border rounded-lg mb-2 bg-white dark:bg-slate-600"></textarea>
-                              <div 
-                                onPaste={(e) => handlePasteImage(e, qIndex)}
-                                className="w-full p-4 border-2 border-dashed rounded-lg text-center text-slate-400 mb-4"
-                              >
-                                {q.imageUrl ? <img src={q.imageUrl} className="w-32 h-32 object-cover rounded-lg my-2 mx-auto" alt="معاينة السؤال"/> : 'ألصق صورة هنا (Ctrl+V)'}
-                                <label className="cursor-pointer text-blue-500 hover:underline mt-2 block">
-                                  أو اختر ملف صورة
-                                  <input type="file" accept="image/*" onChange={(e) => handleManualImageUpload(e, qIndex, 'question')} className="hidden"/>
-                                </label>
-                              </div>
+                            </div>
+                              <input
+                                type="text"
+                                placeholder="أدخل رابط صورة للسؤال (اختياري)"
+                                value={q.imageUrl}
+                                onChange={(e) => handleUpdateQuestion(qIndex, 'imageUrl', e.target.value)}
+                                className="w-full p-2 border rounded-lg mb-2 bg-white dark:bg-slate-600"
+                              />
+                              {q.imageUrl && <img src={q.imageUrl} className="w-32 h-32 object-cover rounded-lg my-2 mx-auto" alt="معاينة السؤال"/>}
+                              
                               {q.options.map((opt, oIndex) => (
                                   <div key={opt.id} className="flex items-center mb-2 bg-white dark:bg-slate-600 p-2 rounded-lg">
                                       <input type="radio" name={`correct-answer-${q.id}`} checked={q.correctAnswer === opt.id} onChange={() => handleUpdateCorrectAnswer(qIndex, opt.id)} className="ml-2"/>
-                                      <input type="text" value={opt.text} onChange={(e) => handleUpdateOption(qIndex, oIndex, e.target.value)} placeholder={`الخيار ${String.fromCharCode(97 + oIndex)}`} className="p-2 border rounded-lg flex-grow bg-white dark:bg-slate-500"/>
+                                      <input type="text" value={opt.text} onChange={(e) => handleUpdateOption(qIndex, oIndex, 'text', e.target.value)} placeholder={`الخيار ${String.fromCharCode(97 + oIndex)}`} className="p-2 border rounded-lg flex-grow bg-white dark:bg-slate-500"/>
+                                      <input type="text" placeholder="رابط صورة للخيار" value={opt.imageUrl} onChange={(e) => handleUpdateOption(qIndex, oIndex, 'imageUrl', e.target.value)} className="p-2 border rounded-lg w-1/3 ml-2 bg-white dark:bg-slate-500"/>
+                                      {opt.imageUrl && <img src={opt.imageUrl} className="w-16 h-16 object-cover rounded-md ml-2" alt="معاينة الخيار"/>}
                                   </div>
                               ))}
+                              <button onClick={() => handleDeleteQuestion(qIndex)} className="text-red-500 hover:text-red-700 text-xs mt-2">حذف السؤال</button>
                           </div>
                       ))}
                       <div className="flex space-x-4 rtl:space-x-reverse">
@@ -955,7 +888,7 @@
                                     <div className="mt-4 flex space-x-2 rtl:space-x-reverse">
                                         <button onClick={() => handlePreviewQuiz(test)} className="flex-1 bg-blue-500 text-white p-2 rounded-lg">معاينة</button>
                                         <button onClick={() => handleEditTest(test, activeTestTab)} className="flex-1 bg-yellow-500 text-white p-2 rounded-lg">تعديل</button>
-                                        <button onClick={() => handleDeleteTest(test.id, activeTestTab)} className="flex-1 bg-red-500 text-white p-2 rounded-lg">حذف</button>
+                                        <button onClick={() => handleDeleteTest(test.id)} className="flex-1 bg-red-500 text-white p-2 rounded-lg">حذف</button>
                                     </div>
                                 </div>
                             ))}
@@ -1021,7 +954,7 @@
                                             <input 
                                                 type="checkbox" 
                                                 checked={user.allowedSections?.includes('كمي') ?? true} 
-                                                onChange={() => handleSectionPermissionChange(user.username, 'كمي')}
+                                                onChange={() => handleSectionPermissionChange(user.id, 'كمي')}
                                                 className="form-checkbox h-4 w-4 text-blue-600 rounded"
                                             />
                                             <span className="mr-2">كمي</span>
@@ -1030,7 +963,7 @@
                                             <input 
                                                 type="checkbox" 
                                                 checked={user.allowedSections?.includes('لفظي') ?? true} 
-                                                onChange={() => handleSectionPermissionChange(user.username, 'لفظي')}
+                                                onChange={() => handleSectionPermissionChange(user.id, 'لفظي')}
                                                 className="form-checkbox h-4 w-4 text-green-600 rounded"
                                             />
                                             <span className="mr-2">لفظي</span>
@@ -1041,10 +974,10 @@
                                     <button onClick={() => handleShowUserScores(user)} title="عرض بيانات المستخدم" className="p-2 text-slate-500 hover:text-blue-600 dark:hover:text-blue-400">
                                         <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path d="M10 12a2 2 0 100-4 2 2 0 000 4z" /><path fillRule="evenodd" d="M.458 10C3.732 4.943 9.522 3 10 3s6.268 1.943 9.542 7c-3.274 5.057-9.064 7-9.542 7S3.732 15.057.458 10zM14 10a4 4 0 11-8 0 4 4 0 018 0z" clipRule="evenodd" /></svg>
                                     </button>
-                                    <button onClick={() => handleToggleUserRole(user.username)} title="اجعله مطور" className="p-2 text-slate-500 hover:text-green-600 dark:hover:text-green-400">
+                                    <button onClick={() => handleToggleUserRole(user.id)} title="اجعله مطور" className="p-2 text-slate-500 hover:text-green-600 dark:hover:text-green-400">
                                         <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clipRule="evenodd" /></svg>
                                     </button>
-                                    <button onClick={() => handleDeleteUser(user.username)} title="حذف المستخدم" className="p-2 text-slate-500 hover:text-red-600 dark:hover:text-red-400">
+                                    <button onClick={() => handleDeleteUser(user.id)} title="حذف المستخدم" className="p-2 text-slate-500 hover:text-red-600 dark:hover:text-red-400">
                                         <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clipRule="evenodd" /></svg>
                                     </button>
                                 </td>
@@ -1056,9 +989,10 @@
         </div>
       );
       
-      const Leaderboard = ({ users }) => {
+      const Leaderboard = ({ users, limit = 10 }) => {
         const leaderboardData = useMemo(() => {
             return users
+                .filter(user => user.role === 'student') // Filter out teachers
                 .map(user => {
                     const allAttempts = Object.values(user.scores).flat();
                     const totalScored = allAttempts.reduce((acc, scoreData) => acc + scoreData.score, 0);
@@ -1067,7 +1001,7 @@
                     return { username: user.username, score: overallPercentage.toFixed(2) };
                 })
                 .sort((a, b) => b.score - a.score)
-                .slice(0, 10);
+                .slice(0, limit);
         }, [users]);
 
         const Medal = ({ rank }) => {
@@ -1100,17 +1034,17 @@
         <div className="min-h-screen text-slate-900 dark:text-slate-100 p-4 sm:p-8">
             <div className="max-w-7xl mx-auto">
                 <div className="flex justify-between items-center mb-8">
-                    <h1 className="text-3xl font-bold">لوحة تحكم المطور</h1>
+                    <h1 className="text-3xl font-bold">مرحباً بك، {currentUser.username}</h1>
                     <div className="flex items-center space-x-4">
                         <ThemeToggleButton />
                         <button onClick={handleReturnToLanding} className="bg-red-500 hover:bg-red-600 text-white font-bold py-2 px-4 rounded-xl">تسجيل الخروج</button>
                     </div>
                 </div>
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                    <div className="lg:col-span-2">
+                    <div className="lg:col-span-2 order-2 lg:order-1">
                         {devPage === 'dashboard' ? renderMainDashboard() : renderUserManagementPage()}
                     </div>
-                    <div className="lg:col-span-1">
+                    <div className="lg:col-span-1 order-1 lg:order-2">
                         <Leaderboard users={usersData} />
                     </div>
                 </div>
@@ -1120,13 +1054,13 @@
       
       // Render Student Dashboard
       const renderStudentDashboard = () => {
-        const currentUserData = usersData.find(u => u.username === currentUsername);
+        const currentUserData = currentUser;
         
         if (!isDataLoaded) {
             return <div className="min-h-screen flex items-center justify-center"><p>جاري تحميل البيانات...</p></div>;
         }
         
-        if (!currentUserData) {
+        if (!currentUserData || currentUserData.role !== 'student') {
             return <div className="min-h-screen flex items-center justify-center"><p>خطأ في تحميل بيانات المستخدم. الرجاء محاولة تسجيل الدخول مرة أخرى.</p></div>;
         }
 
@@ -1145,16 +1079,23 @@
           <div className="min-h-screen text-slate-900 dark:text-slate-100 p-4 sm:p-8">
             <div className="max-w-7xl mx-auto">
                 <div className="flex justify-between items-center mb-8">
-                  <h1 className="text-3xl font-bold">أهلاً بك، {currentUsername}</h1>
+                  <h1 className="text-3xl font-bold">مرحباً بك، {currentUser.username}</h1>
                   <div className="flex items-center space-x-4">
                     <ThemeToggleButton />
                     <button onClick={handleReturnToLanding} className="bg-red-500 hover:bg-red-600 text-white font-bold py-2 px-4 rounded-xl">تسجيل الخروج</button>
                   </div>
                 </div>
 
-                <div className="bg-white dark:bg-slate-800 p-6 rounded-xl shadow-lg mb-8">
-                    <h2 className="text-2xl font-bold mb-2">ملخص الأداء</h2>
-                    <p className="text-lg">النسبة الكلية لجميع الاختبارات: <span className="font-bold text-blue-500">{overallPercentage}%</span></p>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-8">
+                    <div className="bg-white dark:bg-slate-800 p-6 rounded-xl shadow-lg">
+                        <h2 className="text-2xl font-bold mb-2">ملخص الأداء</h2>
+                        <p className="text-lg">النسبة الكلية لجميع الاختبارات: <span className="font-bold text-blue-500">{overallPercentage}%</span></p>
+                    </div>
+                    <div className="bg-white dark:bg-slate-800 p-6 rounded-xl shadow-lg">
+                        <h2 className="text-2xl font-bold mb-2">الاختبارات</h2>
+                        <p className="text-lg">المنجزة: <span className="font-bold text-green-500">{Object.keys(currentUserData.scores).length}</span></p>
+                        <p className="text-lg">المتبقية: <span className="font-bold text-red-500">{allTests.length - Object.keys(currentUserData.scores).length}</span></p>
+                    </div>
                 </div>
                 
                 <div className="bg-white dark:bg-slate-800 p-6 rounded-xl shadow-lg mb-8">
@@ -1183,24 +1124,6 @@
                       );
                     }) : <p>لا توجد اختبارات متاحة لك حالياً.</p>}
                   </div>
-                </div>
-
-                <div className="bg-white dark:bg-slate-800 p-6 rounded-xl shadow-lg">
-                    <h2 className="text-2xl font-bold mb-4">درجاتي</h2>
-                    {Object.keys(currentUserData.scores).length > 0 ? (
-                      <ul className="space-y-2">
-                          {Object.keys(currentUserData.scores).map(testId => {
-                              const testTitle = allTests.find(t => t.id == testId)?.title || "اختبار محذوف";
-                              if (!testTitle) return null;
-                              return currentUserData.scores[testId].map((scoreData, index) => (
-                                  <li key={`${testId}-${index}`} className="p-2 bg-slate-50 dark:bg-slate-700 rounded-lg">
-                                      <strong>{testTitle}:</strong> {scoreData.score} / {scoreData.total} 
-                                      <span className="text-sm text-slate-500 dark:text-slate-400 mr-4">({scoreData.date} - {scoreData.time})</span>
-                                  </li>
-                              ));
-                          })}
-                      </ul>
-                    ) : <p>لا توجد درجات مسجلة بعد.</p>}
                 </div>
             </div>
           </div>
@@ -1366,6 +1289,15 @@
             score++;
           }
         });
+        
+        const percentage = (score / totalQuestions) * 100;
+        
+        const ScoreIndicator = () => {
+            if (percentage >= 80) return <span className="text-green-500 text-2xl ml-2">✅</span>;
+            if (percentage >= 60) return <span className="text-orange-500 text-2xl ml-2">⚠️</span>;
+            if (percentage >= 50) return <span className="text-red-500 text-2xl ml-2">❌</span>;
+            return <span className="text-slate-500 text-2xl ml-2">⚪️</span>;
+        };
 
         return (
           <div className="flex flex-col items-center justify-center min-h-screen p-4" dir="rtl">
@@ -1378,10 +1310,11 @@
                 لقد أنهيت اختبار: <span className="font-semibold text-blue-500">{selectedTest.title}</span>
               </p>
 
-              <div className="mb-8">
+              <div className="mb-8 flex items-center justify-center">
                 <p className="text-2xl font-bold text-slate-900 dark:text-white">
                   درجتك: <span className="text-green-500">{score}</span> / <span className="text-blue-500">{totalQuestions}</span>
                 </p>
+                <ScoreIndicator />
               </div>
               
               <div className="text-right">
@@ -1395,18 +1328,14 @@
                       />
                     )}
                     <p className="text-lg font-semibold text-slate-900 dark:text-white mb-2">
-                      {qIndex + 1}. {question.text}
+                      {currentQuestionIndex + 1}. <MathComponent text={question.text} />
                     </p>
                     <div className="mt-2 text-slate-700 dark:text-slate-300">
                       <p className={`mb-1 ${answers[question.id] === question.correctAnswer ? 'text-green-600' : 'text-red-600'}`}>
-                        <span className="font-bold">إجابتك:</span> {
-                          question.options.find(opt => opt.id === answers[question.id])?.text || 'لم يتم الإجابة'
-                        }
+                        <span className="font-bold">إجابتك:</span> <MathComponent text={question.options.find(opt => opt.id === answers[question.id])?.text || 'لم يتم الإجابة'} />
                       </p>
                       <p>
-                        <span className="font-bold text-green-600 dark:text-green-400">الإجابة الصحيحة:</span> {
-                          question.options.find(opt => opt.id === question.correctAnswer)?.text
-                        }
+                        <span className="font-bold text-green-600 dark:text-green-400">الإجابة الصحيحة:</span> <MathComponent text={question.options.find(opt => opt.id === question.correctAnswer)?.text} />
                       </p>
                       
                     </div>
@@ -1467,7 +1396,7 @@
                                               </td>
                                               <td className="px-6 py-4">{attemptsLeftForTest}</td>
                                               <td className="px-6 py-4">
-                                                  <button onClick={() => onResetAttempt(user.username, test.id)} className="text-blue-500 hover:underline text-xs">
+                                                  <button onClick={() => onResetAttempt(user.id, test.id)} className="text-blue-500 hover:underline text-xs">
                                                       تجديد المحاولة
                                                   </button>
                                               </td>
@@ -1513,7 +1442,7 @@
           case 'login':
             return renderLoginPage();
           case 'dashboard':
-            return currentUser === 'teacher' ? renderTeacherDashboard() : renderStudentDashboard();
+            return currentUser?.role?.includes('teacher') || currentUser?.role === 'superadmin' ? renderTeacherDashboard() : renderStudentDashboard();
           case 'test':
             return renderTestPage();
           case 'results':
