@@ -25,6 +25,65 @@
     .dragging-over {
         border-top: 2px solid #3b82f6; /* blue-500 */
     }
+     .main-container {
+        display: grid;
+        grid-template-columns: 2fr 1fr;
+        gap: 2rem;
+        align-items: flex-start;
+      }
+      @media (max-width: 1024px) {
+        .main-container {
+            grid-template-columns: 1fr;
+        }
+      }
+      .c-graph__title {
+        font-size: 26px;
+        font-weight: 700;
+        color: #1e293b;
+        margin-bottom: 2rem;
+        text-align: center;
+        grid-column: 1 / -1; /* Span across all columns */
+      }
+      .chart-container {
+        position: relative;
+        background-color: #ffffff;
+        padding: 1.5rem;
+        border-radius: 1rem;
+        box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+      }
+      .c-graph__bar {
+        transition: all 0.2s ease-in-out;
+        cursor: pointer;
+      }
+      .c-graph__bar.highlighted {
+        fill: #a78bfa; /* A lighter purple for highlight */
+      }
+      .axis-line { stroke: #e2e8f0; stroke-width: 1; }
+      #tooltip {
+        position: absolute;
+        background-color: rgba(15, 23, 42, 0.9);
+        color: white;
+        padding: 8px 12px;
+        border-radius: 6px;
+        font-size: 14px;
+        pointer-events: none;
+        opacity: 0;
+        transition: opacity 0.2s, transform 0.2s;
+        transform: translate(-50%, -110%);
+        white-space: nowrap;
+      }
+      .table-container {
+        max-height: 550px;
+        overflow-y: auto;
+        background-color: #ffffff;
+        border-radius: 1rem;
+        box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+      }
+      /* Custom scrollbar */
+      .table-container::-webkit-scrollbar { width: 8px; }
+      .table-container::-webkit-scrollbar-track { background: #f1f5f9; border-radius: 1rem; }
+      .table-container::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 1rem; }
+      .table-container::-webkit-scrollbar-thumb:hover { background: #a8b2c1; }
   </style>
   <script>
     tailwind.config = {
@@ -800,8 +859,11 @@
                     />
                     <button onClick={() => handleGenerateAccessCode(devUsernameToGenerate)} className="bg-green-500 text-white py-2 px-4 rounded-lg">إنشاء رمز دخول</button>
                 </div>
-                <button onClick={() => setDevPage('users')} className="text-blue-500 hover:underline">
+                <button onClick={() => setDevPage('users')} className="text-blue-500 hover:underline mb-2 block">
                     الانتقال إلى الإدارة المتقدمة للمستخدمين &larr;
+                </button>
+                <button onClick={() => setDevPage('resultsDashboard')} className="text-blue-500 hover:underline">
+                    الانتقال الي النتائج المتقدمة للمستخدمين &larr;
                 </button>
             </div>
 
@@ -1034,6 +1096,142 @@
         );
       };
 
+      const ResultsDashboard = ({ users, onBack }) => {
+        const [highlightedIndex, setHighlightedIndex] = useState(null);
+        const [tooltip, setTooltip] = useState({ show: false, content: '', x: 0, y: 0 });
+        const containerRef = useRef(null);
+
+        const studentsData = useMemo(() => {
+            return users
+                .filter(user => user.role === 'student')
+                .map(user => {
+                    const allAttempts = Object.values(user.scores).flat();
+                    const totalScored = allAttempts.reduce((acc, scoreData) => acc + scoreData.score, 0);
+                    const totalPossible = allAttempts.reduce((acc, scoreData) => acc + scoreData.total, 0);
+                    const overallPercentage = totalPossible > 0 ? ((totalScored / totalPossible) * 100) : 0;
+                    return { name: user.username, score: Math.round(overallPercentage) };
+                })
+                .sort((a, b) => b.score - a.score);
+        }, [users]);
+
+        const Chart = () => {
+            const chartRef = useRef(null);
+            const [dimensions, setDimensions] = useState({ width: 0, height: 500 });
+
+            useEffect(() => {
+                const handleResize = () => {
+                    if (chartRef.current) {
+                        setDimensions({ width: chartRef.current.clientWidth, height: 500 });
+                    }
+                };
+                handleResize();
+                window.addEventListener('resize', handleResize);
+                return () => window.removeEventListener('resize', handleResize);
+            }, []);
+
+            if (dimensions.width === 0) {
+                return <div ref={chartRef} className="w-full h-[500px]"></div>;
+            }
+
+            const padding = { top: 20, right: 10, bottom: 20, left: 10 };
+            const chartWidth = dimensions.width - padding.left - padding.right;
+            const chartHeight = dimensions.height - padding.top - padding.bottom;
+            const barWidth = studentsData.length > 0 ? chartWidth / studentsData.length * 0.8 : 0;
+            const barSpacing = studentsData.length > 0 ? chartWidth / studentsData.length * 0.2 : 0;
+
+            return (
+                <div ref={chartRef} className="w-full">
+                    <svg width="100%" height={dimensions.height} viewBox={`0 0 ${dimensions.width} ${dimensions.height}`}>
+                        <g transform={`translate(${padding.left}, ${padding.top})`}>
+                            {/* Y-axis grid lines */}
+                            {Array.from({ length: 11 }).map((_, i) => {
+                                const y = chartHeight - (i * chartHeight / 10);
+                                return <line key={i} className="axis-line" x1={0} y1={y} x2={chartWidth} y2={y} />;
+                            })}
+                            {/* Bars */}
+                            {studentsData.map((student, i) => {
+                                const barHeight = (student.score / 100) * chartHeight;
+                                const xPos = i * (barWidth + barSpacing);
+                                const yPos = chartHeight - barHeight;
+                                return (
+                                    <rect
+                                        key={student.name}
+                                        className={`c-graph__bar ${highlightedIndex === i ? 'highlighted' : ''}`}
+                                        x={xPos}
+                                        y={yPos}
+                                        width={barWidth}
+                                        height={barHeight}
+                                        fill="#6d28d9"
+                                        rx="2"
+                                        onMouseMove={(e) => {
+                                            setTooltip({
+                                                show: true,
+                                                content: `<strong>${student.name}</strong><br>النسبة: ${student.score}%`,
+                                                x: e.pageX,
+                                                y: e.pageY
+                                            });
+                                        }}
+                                        onMouseLeave={() => setTooltip({ ...tooltip, show: false })}
+                                        onMouseEnter={() => setHighlightedIndex(i)}
+                                        onMouseOut={() => setHighlightedIndex(null)}
+                                    />
+                                );
+                            })}
+                        </g>
+                    </svg>
+                </div>
+            );
+        };
+
+        return (
+            <div className="bg-white dark:bg-slate-800 p-6 rounded-xl shadow-lg w-full" ref={containerRef}>
+                <div className="flex justify-between items-center mb-6">
+                    <h2 className="text-2xl font-bold">تحليل الأداء الفردي للطلاب</h2>
+                    <button onClick={onBack} className="text-blue-500 hover:underline">
+                        &rarr; العودة إلى لوحة التحكم الرئيسية
+                    </button>
+                </div>
+
+                <div className="main-container">
+                    <div className="chart-container">
+                        <Chart />
+                    </div>
+                    <div className="table-container">
+                        <table className="w-full text-sm text-left text-gray-500 dark:text-gray-400">
+                            <thead className="text-xs text-gray-700 uppercase bg-gray-50 dark:bg-gray-700 dark:text-gray-400 sticky top-0">
+                                <tr>
+                                    <th scope="col" className="px-6 py-3">اسم الطالب</th>
+                                    <th scope="col" className="px-6 py-3">النسبة</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {studentsData.map((student, index) => (
+                                    <tr
+                                        key={student.name}
+                                        className="bg-white dark:bg-slate-800 border-b dark:border-slate-700 hover:bg-gray-50 dark:hover:bg-slate-600"
+                                        onMouseEnter={() => setHighlightedIndex(index)}
+                                        onMouseLeave={() => setHighlightedIndex(null)}
+                                    >
+                                        <td className="px-6 py-4 font-medium text-gray-900 dark:text-white whitespace-nowrap">{student.name}</td>
+                                        <td className="px-6 py-4">{student.score}%</td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                {tooltip.show && (
+                    <div
+                        id="tooltip"
+                        style={{ left: tooltip.x, top: tooltip.y, opacity: 1 }}
+                        dangerouslySetInnerHTML={{ __html: tooltip.content }}
+                    />
+                )}
+            </div>
+        );
+      };
+
+
       // Main Developer Dashboard Container
       const renderTeacherDashboard = () => (
         <div className="min-h-screen text-slate-900 dark:text-slate-100 p-4 sm:p-8">
@@ -1045,14 +1243,18 @@
                         <button onClick={handleReturnToLanding} className="bg-red-500 hover:bg-red-600 text-white font-bold py-2 px-4 rounded-xl">تسجيل الخروج</button>
                     </div>
                 </div>
-                <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                    <div className="lg:col-span-2 order-2 lg:order-1">
-                        {devPage === 'dashboard' ? renderMainDashboard() : renderUserManagementPage()}
+                {devPage === 'resultsDashboard' ? (
+                     <ResultsDashboard users={usersData} onBack={() => setDevPage('dashboard')} />
+                ) : (
+                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                        <div className="lg:col-span-2 order-2 lg:order-1">
+                            {devPage === 'dashboard' ? renderMainDashboard() : renderUserManagementPage()}
+                        </div>
+                        <div className="lg:col-span-1 order-1 lg:order-2">
+                            <Leaderboard users={usersData} />
+                        </div>
                     </div>
-                    <div className="lg:col-span-1 order-1 lg:order-2">
-                        <Leaderboard users={usersData} />
-                    </div>
-                </div>
+                )}
             </div>
         </div>
       );
