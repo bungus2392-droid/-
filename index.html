@@ -5,9 +5,12 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>الاختبارات والتقويم</title>
   <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;700&display=swap" rel="stylesheet">
   <style>
     body {
-      font-family: 'Inter', sans-serif;
+      font-family: 'Cairo', sans-serif;
       margin: 0;
       padding: 0;
       box-sizing: border-box;
@@ -154,6 +157,465 @@
 
       return <span ref={ref}>{text}</span>;
     };
+    
+    // =================================================================
+    // =========== START: NEW STANDALONE COMPONENTS ====================
+    // =================================================================
+
+    const MainDashboard = ({
+      setDevPage,
+      devUsernameToGenerate,
+      setDevUsernameToGenerate,
+      handleGenerateAccessCode,
+      showCreateTestForm,
+      setShowCreateTestForm,
+      setNewTestCategory,
+      editingTestId,
+      newTestCategory,
+      newTestTitle,
+      setNewTestTitle,
+      newTestDuration,
+      setNewTestDuration,
+      newTestMaxAttempts,
+      setNewTestMaxAttempts,
+      newTestPrerequisite,
+      setNewTestPrerequisite,
+      newTestQuestions,
+      handleDragStart,
+      handleDragEnter,
+      handleUpdateQuestion,
+      handleUpdateOption,
+      handleUpdateCorrectAnswer,
+      handleDeleteQuestion,
+      handleAddQuestion,
+      handleSaveNewTest,
+      resetCreateTestForm,
+      testsData,
+      activeTestTab,
+      setActiveTestTab,
+      dragTest,
+      dragOverTest,
+      handleTestSort,
+      handlePreviewQuiz,
+      handleEditTest,
+      handleDeleteTest
+    }) => {
+      return (
+        <div className="space-y-8">
+            <div className="bg-white dark:bg-slate-800 p-6 rounded-xl shadow-lg">
+                <h2 className="text-2xl font-bold mb-4">إدارة المستخدمين</h2>
+                <div className="flex items-center mb-4 space-x-4 rtl:space-x-reverse">
+                    <input
+                        type="text"
+                        placeholder="اسم مستخدم جديد"
+                        value={devUsernameToGenerate}
+                        onChange={(e) => setDevUsernameToGenerate(e.target.value)}
+                        className="p-2 border rounded-lg flex-grow bg-slate-50 dark:bg-slate-700 border-slate-300 dark:border-slate-600"
+                    />
+                    <button onClick={() => handleGenerateAccessCode(devUsernameToGenerate)} className="bg-green-500 text-white py-2 px-4 rounded-lg">إنشاء رمز دخول</button>
+                </div>
+                <div className="flex flex-col space-y-2 items-start">
+                    <button onClick={() => setDevPage('users')} className="text-blue-500 hover:underline">
+                        الانتقال إلى الإدارة المتقدمة للمستخدمين &larr;
+                    </button>
+                    <button onClick={() => setDevPage('results')} className="text-blue-500 hover:underline">
+                        الانتقال الي النتائج المتقدمة للمستخدمين &larr;
+                    </button>
+                </div>
+            </div>
+
+            <div className="bg-white dark:bg-slate-800 p-6 rounded-xl shadow-lg">
+              <h2 className="text-2xl font-bold mb-4">إنشاء اختبار</h2>
+              {!showCreateTestForm ? (
+                  <div className="flex space-x-4 rtl:space-x-reverse">
+                      <button onClick={() => { setShowCreateTestForm(true); setNewTestCategory('كمي'); }} className="bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded-lg">
+                          اضافة اختبار كمي
+                      </button>
+                      <button onClick={() => { setShowCreateTestForm(true); setNewTestCategory('لفظي'); }} className="bg-green-500 hover:bg-green-600 text-white font-bold py-2 px-4 rounded-lg">
+                          اضافة اختبار لفظي
+                      </button>
+                  </div>
+              ) : (
+                  <div>
+                      <h3 className="text-xl font-semibold mb-4">{editingTestId ? `تعديل اختبار ${newTestCategory}` : `إضافة اختبار ${newTestCategory} جديد`}</h3>
+                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
+                          <input type="text" placeholder="عنوان الاختبار" value={newTestTitle} onChange={(e) => setNewTestTitle(e.target.value)} className="p-2 border rounded-lg bg-slate-50 dark:bg-slate-700" />
+                          <input type="number" placeholder="المدة (دقائق)" value={newTestDuration} onChange={(e) => setNewTestDuration(e.target.value)} className="p-2 border rounded-lg bg-slate-50 dark:bg-slate-700" />
+                          <input type="number" placeholder="أقصى عدد محاولات" value={newTestMaxAttempts} onChange={(e) => setNewTestMaxAttempts(e.target.value)} className="p-2 border rounded-lg bg-slate-50 dark:bg-slate-700" />
+                          <input type="number" placeholder="النسبة المطلوبة (%)" value={newTestPrerequisite} onChange={(e) => setNewTestPrerequisite(e.target.value)} className="p-2 border rounded-lg bg-slate-50 dark:bg-slate-700" />
+                      </div>
+                      {newTestQuestions.map((q, qIndex) => (
+                          <div 
+                            key={q.id} 
+                            className="bg-slate-50 dark:bg-slate-700 p-4 rounded-lg mb-4 border dark:border-slate-600"
+                          >
+                            <div 
+                                className="cursor-grab"
+                                draggable
+                                onDragStart={(e) => handleDragStart(e, qIndex)}
+                                onDragEnter={(e) => handleDragEnter(e, qIndex)}
+                            >
+                              <h4 className="font-bold mb-2">السؤال {qIndex + 1}</h4>
+                              <textarea value={q.text} onChange={(e) => handleUpdateQuestion(qIndex, 'text', e.target.value)} placeholder="نص السؤال" className="w-full p-2 border rounded-lg mb-2 bg-white dark:bg-slate-600"></textarea>
+                            </div>
+                              <input
+                                type="text"
+                                placeholder="أدخل رابط صورة للسؤال (اختياري)"
+                                value={q.imageUrl}
+                                onChange={(e) => handleUpdateQuestion(qIndex, 'imageUrl', e.target.value)}
+                                className="w-full p-2 border rounded-lg mb-2 bg-white dark:bg-slate-600"
+                              />
+                              {q.imageUrl && <img src={q.imageUrl} className="w-32 h-32 object-cover rounded-lg my-2 mx-auto" alt="معاينة السؤال"/>}
+                              
+                              {q.options.map((opt, oIndex) => (
+                                  <div key={opt.id} className="flex items-center mb-2 bg-white dark:bg-slate-600 p-2 rounded-lg">
+                                      <input type="radio" name={`correct-answer-${q.id}`} checked={q.correctAnswer === opt.id} onChange={() => handleUpdateCorrectAnswer(qIndex, opt.id)} className="ml-2"/>
+                                      <input type="text" value={opt.text} onChange={(e) => handleUpdateOption(qIndex, oIndex, 'text', e.target.value)} placeholder={`الخيار ${String.fromCharCode(97 + oIndex)}`} className="p-2 border rounded-lg flex-grow bg-white dark:bg-slate-500"/>
+                                      <input type="text" placeholder="رابط صورة للخيار" value={opt.imageUrl} onChange={(e) => handleUpdateOption(qIndex, oIndex, 'imageUrl', e.target.value)} className="p-2 border rounded-lg w-1/3 ml-2 bg-white dark:bg-slate-500"/>
+                                      {opt.imageUrl && <img src={opt.imageUrl} className="w-16 h-16 object-cover rounded-md ml-2" alt="معاينة الخيار"/>}
+                                  </div>
+                              ))}
+                              <button onClick={() => handleDeleteQuestion(qIndex)} className="text-red-500 hover:text-red-700 text-xs mt-2">حذف السؤال</button>
+                          </div>
+                      ))}
+                      <div className="flex space-x-4 rtl:space-x-reverse">
+                          <button onClick={handleAddQuestion} className="bg-slate-200 dark:bg-slate-600 p-2 rounded-lg">إضافة سؤال</button>
+                          <button onClick={handleSaveNewTest} className="bg-green-500 text-white p-2 rounded-lg">{editingTestId ? 'تحديث الاختبار' : 'حفظ الاختبار'}</button>
+                          <button onClick={resetCreateTestForm} className="bg-red-500 text-white p-2 rounded-lg">إلغاء</button>
+                      </div>
+                  </div>
+              )}
+            </div>
+            
+            <div className="bg-white dark:bg-slate-800 p-6 rounded-xl shadow-lg">
+               <h2 className="text-2xl font-bold mb-4">الاختبارات الحالية</h2>
+                <div className="border-b border-slate-200 dark:border-slate-700 mb-4">
+                    <nav className="-mb-px flex space-x-8 rtl:space-x-reverse" aria-label="Tabs">
+                        <button onClick={() => setActiveTestTab('كمي')} className={`${activeTestTab === 'كمي' ? 'border-blue-500 text-blue-600' : 'border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300 dark:text-slate-400 dark:hover:text-slate-300'} whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm`}>
+                            كمي
+                        </button>
+                        <button onClick={() => setActiveTestTab('لفظي')} className={`${activeTestTab === 'لفظي' ? 'border-blue-500 text-blue-600' : 'border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300 dark:text-slate-400 dark:hover:text-slate-300'} whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm`}>
+                            لفظي
+                        </button>
+                    </nav>
+                </div>
+                
+                <div>
+                    {(testsData[activeTestTab]?.length ?? 0) === 0 ? (
+                        <p>لا توجد اختبارات في قسم {activeTestTab}.</p>
+                    ) : (
+                        <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+                            {testsData[activeTestTab].map((test, index) => (
+                                <div 
+                                    key={test.id} 
+                                    className="p-4 bg-slate-50 dark:bg-slate-700 rounded-lg border dark:border-slate-600 cursor-move"
+                                    draggable
+                                    onDragStart={() => dragTest.current = index}
+                                    onDragEnter={() => dragOverTest.current = index}
+                                    onDragEnd={handleTestSort}
+                                    onDragOver={(e) => e.preventDefault()}
+                                >
+                                    <h4 className="text-lg font-bold">{test.title}</h4>
+                                    <p>{test.questions.length} أسئلة</p>
+                                    <div className="mt-4 flex space-x-2 rtl:space-x-reverse">
+                                        <button onClick={() => handlePreviewQuiz(test)} className="flex-1 bg-blue-500 text-white p-2 rounded-lg">معاينة</button>
+                                        <button onClick={() => handleEditTest(test, activeTestTab)} className="flex-1 bg-yellow-500 text-white p-2 rounded-lg">تعديل</button>
+                                        <button onClick={() => handleDeleteTest(test.id)} className="flex-1 bg-red-500 text-white p-2 rounded-lg">حذف</button>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    )}
+                </div>
+            </div>
+        </div>
+      );
+    };
+
+    const UserManagementPage = ({ setDevPage, usersData, handleShowUserScores, handleToggleUserRole, handleDeleteUser, handleSectionPermissionChange }) => {
+        const [userSearchTerm, setUserSearchTerm] = useState('');
+        
+        const filteredUsers = useMemo(() => usersData
+            .filter(user => 
+                user.username.toLowerCase().includes(userSearchTerm.toLowerCase())
+            )
+            .sort((a, b) => {
+                if (a.role === 'teacher' && b.role !== 'teacher') return -1;
+                if (a.role !== 'teacher' && b.role === 'teacher') return 1;
+                return a.username.localeCompare(b.username);
+            }), [usersData, userSearchTerm]);
+
+        return (
+            <div className="bg-white dark:bg-slate-800 p-6 rounded-xl shadow-lg">
+                <div className="flex justify-between items-center mb-6">
+                    <h2 className="text-2xl font-bold">الإدارة المتقدمة للمستخدمين</h2>
+                    <button onClick={() => setDevPage('dashboard')} className="text-blue-500 hover:underline">
+                        &rarr; العودة إلى لوحة التحكم الرئيسية
+                    </button>
+                </div>
+                <div className="mb-4">
+                    <input 
+                        type="text"
+                        placeholder="ابحث عن اسم مستخدم..."
+                        value={userSearchTerm}
+                        onChange={(e) => setUserSearchTerm(e.target.value)}
+                        className="w-full p-3 bg-slate-50 dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded-lg"
+                    />
+                </div>
+                <div className="overflow-x-auto">
+                    <table className="w-full text-sm text-left text-slate-500 dark:text-slate-400">
+                        <thead className="text-xs text-slate-700 uppercase bg-slate-50 dark:bg-slate-700 dark:text-slate-400">
+                            <tr>
+                                <th scope="col" className="px-6 py-3">اسم المستخدم</th>
+                                <th scope="col" className="px-6 py-3">رمز الدخول</th>
+                                <th scope="col" className="px-6 py-3">الصلاحية</th>
+                                <th scope="col" className="px-6 py-3">الأقسام المتاحة</th>
+                                <th scope="col" className="px-6 py-3 text-center">الإجراءات</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {filteredUsers.map(user => (
+                                <tr key={user.username} className="bg-white dark:bg-slate-800 border-b dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-600">
+                                    <td className="px-6 py-4 font-medium text-slate-900 dark:text-white">{user.username}</td>
+                                    <td className="px-6 py-4">{user.accessCode}</td>
+                                    <td className="px-6 py-4">
+                                        <span className={`px-2 py-1 rounded-full text-xs font-medium ${user.role === 'teacher' ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300' : 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300'}`}>
+                                            {user.role === 'teacher' ? 'مطور' : 'طالب'}
+                                        </span>
+                                    </td>
+                                    <td className="px-6 py-4">
+                                        <div className="flex items-center space-x-4 rtl:space-x-reverse">
+                                            <label className="flex items-center">
+                                                <input 
+                                                    type="checkbox" 
+                                                    checked={user.allowedSections?.includes('كمي') ?? true} 
+                                                    onChange={() => handleSectionPermissionChange(user.id, 'كمي')}
+                                                    className="form-checkbox h-4 w-4 text-blue-600 rounded"
+                                                />
+                                                <span className="mr-2">كمي</span>
+                                            </label>
+                                            <label className="flex items-center">
+                                                <input 
+                                                    type="checkbox" 
+                                                    checked={user.allowedSections?.includes('لفظي') ?? true} 
+                                                    onChange={() => handleSectionPermissionChange(user.id, 'لفظي')}
+                                                    className="form-checkbox h-4 w-4 text-green-600 rounded"
+                                                />
+                                                <span className="mr-2">لفظي</span>
+                                            </label>
+                                        </div>
+                                    </td>
+                                    <td className="px-6 py-4 flex items-center justify-center space-x-2 rtl:space-x-reverse">
+                                        <button onClick={() => handleShowUserScores(user)} title="عرض بيانات المستخدم" className="p-2 text-slate-500 hover:text-blue-600 dark:hover:text-blue-400">
+                                            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path d="M10 12a2 2 0 100-4 2 2 0 000 4z" /><path fillRule="evenodd" d="M.458 10C3.732 4.943 9.522 3 10 3s6.268 1.943 9.542 7c-3.274 5.057-9.064 7-9.542 7S3.732 15.057.458 10zM14 10a4 4 0 11-8 0 4 4 0 018 0z" clipRule="evenodd" /></svg>
+                                        </button>
+                                        <button onClick={() => handleToggleUserRole(user.id)} title="اجعله مطور" className="p-2 text-slate-500 hover:text-green-600 dark:hover:text-green-400">
+                                            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clipRule="evenodd" /></svg>
+                                        </button>
+                                        <button onClick={() => handleDeleteUser(user.id)} title="حذف المستخدم" className="p-2 text-slate-500 hover:text-red-600 dark:hover:text-red-400">
+                                            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clipRule="evenodd" /></svg>
+                                        </button>
+                                    </td>
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        );
+    };
+
+    const ResultsChart = ({ data }) => {
+        const containerRef = useRef(null);
+        const [highlightedIndex, setHighlightedIndex] = useState(null);
+        
+        const renderChart = useCallback(() => {
+            const container = containerRef.current;
+            if (!container) return;
+            container.innerHTML = '';
+            
+            let tooltip = document.getElementById('tooltip');
+            if(!tooltip) {
+                tooltip = document.createElement('div');
+                tooltip.id = 'tooltip';
+                document.body.appendChild(tooltip);
+            }
+
+            const padding = { top: 20, right: 10, bottom: 20, left: 10 };
+            const containerWidth = container.clientWidth || 800;
+            const containerHeight = 500;
+            const chartWidth = containerWidth - padding.left - padding.right;
+            const chartHeight = containerHeight - padding.top - padding.bottom;
+
+            const svgNS = "http://www.w3.org/2000/svg";
+            const svg = document.createElementNS(svgNS, 'svg');
+            svg.setAttribute('width', '100%');
+            svg.setAttribute('height', containerHeight);
+            svg.setAttribute('viewBox', `0 0 ${containerWidth} ${containerHeight}`);
+
+            const mainGroup = document.createElementNS(svgNS, 'g');
+            mainGroup.setAttribute('transform', `translate(${padding.left}, ${padding.top})`);
+            svg.appendChild(mainGroup);
+
+            for(let i = 0; i <= 10; i++) {
+                const y = chartHeight - (i * chartHeight / 10);
+                const line = document.createElementNS(svgNS, 'line');
+                line.setAttribute('class', 'axis-line');
+                line.setAttribute('x1', 0);
+                line.setAttribute('y1', y);
+                line.setAttribute('x2', chartWidth);
+                line.setAttribute('y2', y);
+                mainGroup.appendChild(line);
+            }
+
+            const barWidth = data.length > 0 ? chartWidth / data.length * 0.8 : 0;
+            const barSpacing = data.length > 0 ? chartWidth / data.length * 0.2 : 0;
+
+            data.forEach((student, i) => {
+                const barHeight = (student.score / 100) * chartHeight;
+                const xPos = i * (barWidth + barSpacing);
+                const yPos = chartHeight - barHeight;
+
+                const rect = document.createElementNS(svgNS, 'rect');
+                rect.setAttribute('class', 'c-graph__bar');
+                rect.id = `student-bar-${i}`;
+                rect.setAttribute('x', xPos);
+                rect.setAttribute('y', yPos);
+                rect.setAttribute('width', barWidth);
+                rect.setAttribute('height', barHeight);
+                rect.setAttribute('fill', '#6d28d9');
+                rect.setAttribute('rx', '2');
+                if (i === highlightedIndex) {
+                    rect.classList.add('highlighted');
+                }
+                mainGroup.appendChild(rect);
+
+                rect.addEventListener('mousemove', (e) => {
+                    tooltip.style.opacity = '1';
+                    tooltip.style.left = `${e.pageX}px`;
+                    tooltip.style.top = `${e.pageY}px`;
+                    tooltip.innerHTML = `<strong>${student.name}</strong><br>النسبة: ${student.score}%`;
+                });
+                rect.addEventListener('mouseleave', () => {
+                    tooltip.style.opacity = '0';
+                });
+            });
+            container.appendChild(svg);
+        }, [data, highlightedIndex]);
+
+        useEffect(() => {
+            renderChart();
+            let resizeTimeout;
+            const handleResize = () => {
+                clearTimeout(resizeTimeout);
+                resizeTimeout = setTimeout(renderChart, 250);
+            };
+            window.addEventListener('resize', handleResize);
+            return () => window.removeEventListener('resize', handleResize);
+        }, [renderChart]);
+
+        return (
+            <div className="w-full">
+                <div id="graph-container" ref={containerRef} className="chart-container"></div>
+                <div className="table-container mt-8">
+                    <table className="w-full text-sm text-left text-gray-500">
+                        <thead className="text-xs text-gray-700 uppercase bg-gray-50 sticky top-0">
+                            <tr>
+                                <th scope="col" className="px-6 py-3">اسم الطالب</th>
+                                <th scope="col" className="px-6 py-3">النسبة</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {data.map((student, index) => (
+                                <tr 
+                                    key={index} 
+                                    className="bg-white border-b hover:bg-gray-50"
+                                    onMouseEnter={() => setHighlightedIndex(index)}
+                                    onMouseLeave={() => setHighlightedIndex(null)}
+                                >
+                                    <td className="px-6 py-4 font-medium text-gray-900 whitespace-nowrap">{student.name}</td>
+                                    <td className="px-6 py-4">{student.score}%</td>
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
+                </div>
+                <div id="tooltip"></div>
+            </div>
+        );
+    };
+
+    const ResultsManagementPage = ({ setDevPage, usersData }) => {
+        const studentResults = useMemo(() => {
+            return usersData
+                .filter(user => user.role === 'student')
+                .map(user => {
+                    const allAttempts = Object.values(user.scores).flat();
+                    const totalScored = allAttempts.reduce((acc, scoreData) => acc + scoreData.score, 0);
+                    const totalPossible = allAttempts.reduce((acc, scoreData) => acc + scoreData.total, 0);
+                    const overallPercentage = totalPossible > 0 ? ((totalScored / totalPossible) * 100) : 0;
+                    return { name: user.username, score: parseFloat(overallPercentage.toFixed(2)) };
+                })
+                .sort((a, b) => b.score - a.score);
+        }, [usersData]);
+
+        return (
+            <div className="bg-white dark:bg-slate-800 p-6 rounded-xl shadow-lg">
+                <div className="flex justify-between items-center mb-6">
+                    <h2 className="text-2xl font-bold">النتائج المتقدمة للمستخدمين</h2>
+                    <button onClick={() => setDevPage('dashboard')} className="text-blue-500 hover:underline">
+                        &rarr; العودة إلى لوحة التحكم الرئيسية
+                    </button>
+                </div>
+                <ResultsChart data={studentResults} />
+            </div>
+        );
+    };
+
+    const Leaderboard = ({ users, limit = 10 }) => {
+        const leaderboardData = useMemo(() => {
+            return users
+                .filter(user => user.role === 'student') // Filter out teachers
+                .map(user => {
+                    const allAttempts = Object.values(user.scores).flat();
+                    const totalScored = allAttempts.reduce((acc, scoreData) => acc + scoreData.score, 0);
+                    const totalPossible = allAttempts.reduce((acc, scoreData) => acc + scoreData.total, 0);
+                    const overallPercentage = totalPossible > 0 ? ((totalScored / totalPossible) * 100) : 0;
+                    return { username: user.username, score: overallPercentage.toFixed(2) };
+                })
+                .sort((a, b) => b.score - a.score)
+                .slice(0, limit);
+        }, [users]);
+
+        const Medal = ({ rank }) => {
+            if (rank === 0) return <span title="المركز الأول" className="text-yellow-400">🥇</span>;
+            if (rank === 1) return <span title="المركز الثاني" className="text-slate-400">🥈</span>;
+            if (rank === 2) return <span title="المركز الثالث" className="text-yellow-600">🥉</span>;
+            return <span className="text-slate-400">{rank + 1}</span>;
+        };
+
+        return (
+            <div className="bg-white dark:bg-slate-800 p-6 rounded-xl shadow-lg">
+                <h2 className="text-2xl font-bold mb-4 text-center">قائمة المتصدرين</h2>
+                <ul className="space-y-4">
+                    {leaderboardData.map((user, index) => (
+                        <li key={user.username} className="flex items-center justify-between p-3 bg-slate-50 dark:bg-slate-700 rounded-lg">
+                            <div className="flex items-center">
+                                <span className="text-lg font-bold w-8 text-center"><Medal rank={index} /></span>
+                                <span className="font-medium text-slate-900 dark:text-white">{user.username}</span>
+                            </div>
+                            <span className="font-bold text-blue-500">{user.score}%</span>
+                        </li>
+                    ))}
+                </ul>
+            </div>
+        );
+      };
+    
+    // =================================================================
+    // ===========  END: NEW STANDALONE COMPONENTS  ====================
+    // =================================================================
+
 
     function App() {
       const [testsData, setTestsData] = useState({ 'كمي': [], 'لفظي': [] });
@@ -162,7 +624,7 @@
 
       useEffect(() => {
         if (!db) {
-            alert("فشل تهيئة Firebase. يرجى التحقق من معلومات الإعداد.");
+            console.error("فشل تهيئة Firebase. يرجى التحقق من معلومات الإعداد.");
             setIsDataLoaded(true);
             return;
         }
@@ -174,6 +636,7 @@
                     newTestsData[test.category].push(test);
                 }
             });
+            // Data is not sorted here anymore to allow manual sorting
             setTestsData(newTestsData);
         });
 
@@ -231,9 +694,16 @@
       const [devUsernameToGenerate, setDevUsernameToGenerate] = useState('');
       const [loginError, setLoginError] = useState('');
       
-      // Hardcoded credentials for demonstration
       const DEV_USERNAME = 'tarek2000';
       const DEV_PASSWORD = 'BossX@786';
+      
+      const [activeTestTab, setActiveTestTab] = useState('كمي');
+
+      // Refs for drag and drop tests
+      const dragTest = useRef(null);
+      const dragOverTest = useRef(null);
+      const dragItem = useRef();
+      const dragOverItem = useRef();
 
       useEffect(() => {
         if (darkMode) {
@@ -284,13 +754,13 @@
       
       const handleGenerateAccessCode = async (username) => {
         if (!username) {
-          alert('الرجاء إدخال اسم المستخدم أولاً.');
-          return;
+            console.error('الرجاء إدخال اسم المستخدم أولاً.');
+            return;
         }
         const existingUser = usersData.find(u => u.username === username);
         if (existingUser) {
-          alert('هذا المستخدم موجود بالفعل.');
-          return;
+            console.error('هذا المستخدم موجود بالفعل.');
+            return;
         }
 
         const newCode = Math.floor(100000 + Math.random() * 900000).toString();
@@ -305,22 +775,21 @@
         
         await window.firebase.addDoc(window.firebase.collection(db, "users"), newUser);
         setDevUsernameToGenerate('');
-        alert(`تم توليد رمز دخول جديد للمستخدم ${username}: ${newCode}`);
+        console.log(`تم توليد رمز دخول جديد للمستخدم ${username}: ${newCode}`);
       };
 
       const handleDeleteUser = async (userId) => {
-        if(confirm(`هل أنت متأكد من رغبتك في حذف هذا المستخدم؟ لا يمكن التراجع عن هذا الإجراء.`)){
+        if(window.confirm(`هل أنت متأكد من رغبتك في حذف هذا المستخدم؟ لا يمكن التراجع عن هذا الإجراء.`)){
             await window.firebase.deleteDoc(window.firebase.doc(db, "users", userId));
         }
       };
 
       const handleResetSingleTestAttempts = async (userId, testId) => {
-         if(confirm(`هل أنت متأكد من رغبتك في تجديد محاولة هذا الاختبار لهذا المستخدم؟`)){
+         if(window.confirm(`هل أنت متأكد من رغبتك في تجديد محاولة هذا الاختبار لهذا المستخدم؟`)){
             const userToUpdate = usersData.find(u => u.id === userId);
             const newAttemptsLeft = { ...userToUpdate.attemptsLeft };
             delete newAttemptsLeft[testId];
             await window.firebase.updateDoc(window.firebase.doc(db, "users", userId), { attemptsLeft: newAttemptsLeft });
-            alert(`تم تجديد المحاولة للمستخدم.`);
         }
       };
       
@@ -333,14 +802,11 @@
           const password = prompt(`الرجاء تعيين كلمة مرور للمطور الجديد: ${userToUpdate.username}`);
           if (password && password.length > 0) {
             updateData.password = password;
-            alert(`تم ترقية المستخدم ${userToUpdate.username} إلى مطور.`);
           } else {
-            alert('تم إلغاء الترقية لعدم إدخال كلمة مرور.');
             return;
           }
         } else {
           updateData.password = null;
-          alert(`تم تغيير صلاحية المستخدم ${userToUpdate.username} إلى طالب.`);
         }
         await window.firebase.updateDoc(window.firebase.doc(db, "users", userId), updateData);
       };
@@ -355,7 +821,7 @@
     };
 
       const handleDeleteTest = async (testId) => {
-        if(confirm('هل أنت متأكد من رغبتك في حذف هذا الاختبار؟ سيتم حذف جميع درجات الطلاب المتعلقة به.')){
+        if(window.confirm('هل أنت متأكد من رغبتك في حذف هذا الاختبار؟ سيتم حذف جميع درجات الطلاب المتعلقة به.')){
             await window.firebase.deleteDoc(window.firebase.doc(db, "tests", testId));
         }
       };
@@ -379,19 +845,13 @@
         const testWithShuffledQuestions = { ...test, questions: shuffledQuestions };
 
         const currentUserData = usersData.find(u => u.username === currentUser.username);
-        if (!currentUserData) {
-          alert("حدث خطأ في بيانات المستخدم.");
-          return;
-        }
+        if (!currentUserData) return;
         
         const attemptsLeft = currentUserData.attemptsLeft[test.id] !== undefined
           ? currentUserData.attemptsLeft[test.id]
           : test.maxAttempts;
 
-        if (attemptsLeft <= 0) {
-          alert("لا توجد فرص متبقية لهذا الاختبار.");
-          return;
-        }
+        if (attemptsLeft <= 0) return;
 
         const allAttempts = Object.values(currentUserData.scores).flat();
         const totalScored = allAttempts.reduce((acc, scoreData) => acc + scoreData.score, 0);
@@ -399,10 +859,7 @@
         const overallPercentage = totalPossible > 0 ? ((totalScored / totalPossible) * 100) : 0;
         const prerequisite = test.prerequisitePercentage || 0;
 
-        if (overallPercentage < prerequisite) {
-            alert(`لا يمكنك بدء هذا الاختبار. يتطلب نسبة كلية تبلغ ${prerequisite}% على الأقل.`);
-            return;
-        }
+        if (overallPercentage < prerequisite) return;
 
         setSelectedTest(testWithShuffledQuestions);
         setAnswers({});
@@ -425,10 +882,7 @@
       };
 
       const handleAnswerChange = (questionId, selectedOption) => {
-        setAnswers({
-          ...answers,
-          [questionId]: selectedOption
-        });
+        setAnswers({ ...answers, [questionId]: selectedOption });
       };
 
       const handleSubmitTest = async () => {
@@ -480,9 +934,6 @@
         setUserScoresToShow(null);
       };
 
-      const dragItem = useRef();
-      const dragOverItem = useRef();
-
       const handleDragStart = (e, position) => {
         dragItem.current = position;
       };
@@ -497,6 +948,22 @@
         dragOverItem.current = null;
         setNewTestQuestions(list);
       };
+      
+      const handleTestSort = () => {
+        if (dragTest.current === null || dragOverTest.current === null) return;
+
+        const testsCopy = [...testsData[activeTestTab]];
+        const draggedItemContent = testsCopy.splice(dragTest.current, 1)[0];
+        testsCopy.splice(dragOverTest.current, 0, draggedItemContent);
+
+        setTestsData(prev => ({
+            ...prev,
+            [activeTestTab]: testsCopy
+        }));
+
+        dragTest.current = null;
+        dragOverTest.current = null;
+    };
 
       const handleAddQuestion = () => {
         setNewTestQuestions([...newTestQuestions, {
@@ -549,10 +1016,7 @@
       }
 
       const handleSaveNewTest = async () => {
-        if (!newTestTitle || !newTestDuration || !newTestMaxAttempts || newTestQuestions.length === 0) {
-            alert('الرجاء إكمال جميع الحقول.');
-            return;
-        }
+        if (!newTestTitle || !newTestDuration || !newTestMaxAttempts || newTestQuestions.length === 0) return;
         
         const newTest = {
           title: newTestTitle,
@@ -565,10 +1029,8 @@
 
         if(editingTestId) {
             await window.firebase.setDoc(window.firebase.doc(db, "tests", editingTestId), newTest);
-            alert('تم تحديث الاختبار بنجاح!');
         } else {
             await window.firebase.addDoc(window.firebase.collection(db, "tests"), newTest);
-            alert('تم حفظ الاختبار الجديد بنجاح!');
         }
         resetCreateTestForm();
       };
@@ -593,10 +1055,7 @@
       };
 
       const handleGenerateQuizFromFile = async () => {
-        if (!uploadedFile || !uploadedQuizDuration || !uploadedQuizAttempts) {
-          alert('الرجاء إدخال جميع إعدادات الاختبار.');
-          return;
-        }
+        if (!uploadedFile || !uploadedQuizDuration || !uploadedQuizAttempts) return;
 
         setShowFileUploadModal(false);
         setFileLoading(true);
@@ -657,7 +1116,7 @@
             body: JSON.stringify(payload)
           });
           const result = await response.json();
-          if (result.candidates && result.candidates.length > 0 && result.candidates[0].content && result.candidates[0].content.parts && result.candidates[0].content.parts.length > 0) {
+          if (result.candidates?.[0]?.content?.parts?.[0]) {
             const jsonString = result.candidates[0].content.parts[0].text.replace(/```json\n|\n```/g, '');
             try {
                 const uploadedQuiz = JSON.parse(jsonString);
@@ -676,19 +1135,14 @@
                   [uploadedQuizCategory]: [...(prev[uploadedQuizCategory] || []), newTest]
                 }));
 
-                alert('تم إنشاء الاختبار من الملف بنجاح!');
             } catch (parseError) {
-                console.error("Error parsing JSON from file generation:", parseError);
-                console.error("Malformed JSON string was:", jsonString);
-                alert('فشل في تحليل الاختبار الذي تم إنشاؤه.');
+                console.error("Error parsing JSON:", parseError, "String:", jsonString);
             }
           } else {
-            console.error("Unexpected API response structure:", result);
-            alert('فشل إنشاء الاختبار من الملف.');
+            console.error("Unexpected API response:", result);
           }
         } catch (error) {
-          console.error("Error generating quiz from file:", error);
-          alert('حدث خطأ أثناء إنشاء الاختبار.');
+          console.error("Error generating quiz:", error);
         } finally {
           setFileLoading(false);
           setUploadedFile(null);
@@ -723,12 +1177,8 @@
               break;
             }
           }
-          if (!found) {
-            console.log("Could not find test to save in existing data.");
-          }
           return newTests;
         });
-        alert('تم حفظ التغييرات بنجاح!');
         handleClosePreview();
       };
 
@@ -843,395 +1293,6 @@
         </div>
       );
       
-      const [activeTestTab, setActiveTestTab] = useState('كمي');
-
-      const renderMainDashboard = () => (
-         <div className="space-y-8">
-            <div className="bg-white dark:bg-slate-800 p-6 rounded-xl shadow-lg">
-                <h2 className="text-2xl font-bold mb-4">إدارة المستخدمين</h2>
-                <div className="flex items-center mb-4 space-x-4 rtl:space-x-reverse">
-                    <input
-                        type="text"
-                        placeholder="اسم مستخدم جديد"
-                        value={devUsernameToGenerate}
-                        onChange={(e) => setDevUsernameToGenerate(e.target.value)}
-                        className="p-2 border rounded-lg flex-grow bg-slate-50 dark:bg-slate-700 border-slate-300 dark:border-slate-600"
-                    />
-                    <button onClick={() => handleGenerateAccessCode(devUsernameToGenerate)} className="bg-green-500 text-white py-2 px-4 rounded-lg">إنشاء رمز دخول</button>
-                </div>
-                <button onClick={() => setDevPage('users')} className="text-blue-500 hover:underline mb-2 block">
-                    الانتقال إلى الإدارة المتقدمة للمستخدمين &larr;
-                </button>
-                <button onClick={() => setDevPage('resultsDashboard')} className="text-blue-500 hover:underline">
-                    الانتقال الي النتائج المتقدمة للمستخدمين &larr;
-                </button>
-            </div>
-
-            <div className="bg-white dark:bg-slate-800 p-6 rounded-xl shadow-lg">
-              <h2 className="text-2xl font-bold mb-4">إنشاء اختبار</h2>
-              {!showCreateTestForm ? (
-                  <div className="flex space-x-4 rtl:space-x-reverse">
-                      <button onClick={() => { setShowCreateTestForm(true); setNewTestCategory('كمي'); }} className="bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded-lg">
-                          اضافة اختبار كمي
-                      </button>
-                      <button onClick={() => { setShowCreateTestForm(true); setNewTestCategory('لفظي'); }} className="bg-green-500 hover:bg-green-600 text-white font-bold py-2 px-4 rounded-lg">
-                          اضافة اختبار لفظي
-                      </button>
-                  </div>
-              ) : (
-                  <div>
-                      <h3 className="text-xl font-semibold mb-4">{editingTestId ? `تعديل اختبار ${newTestCategory}` : `إضافة اختبار ${newTestCategory} جديد`}</h3>
-                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
-                          <input type="text" placeholder="عنوان الاختبار" value={newTestTitle} onChange={(e) => setNewTestTitle(e.target.value)} className="p-2 border rounded-lg bg-slate-50 dark:bg-slate-700" />
-                          <input type="number" placeholder="المدة (دقائق)" value={newTestDuration} onChange={(e) => setNewTestDuration(e.target.value)} className="p-2 border rounded-lg bg-slate-50 dark:bg-slate-700" />
-                          <input type="number" placeholder="أقصى عدد محاولات" value={newTestMaxAttempts} onChange={(e) => setNewTestMaxAttempts(e.target.value)} className="p-2 border rounded-lg bg-slate-50 dark:bg-slate-700" />
-                          <input type="number" placeholder="النسبة المطلوبة (%)" value={newTestPrerequisite} onChange={(e) => setNewTestPrerequisite(e.target.value)} className="p-2 border rounded-lg bg-slate-50 dark:bg-slate-700" />
-                      </div>
-                      {newTestQuestions.map((q, qIndex) => (
-                          <div 
-                            key={q.id} 
-                            className="bg-slate-50 dark:bg-slate-700 p-4 rounded-lg mb-4 border dark:border-slate-600"
-                          >
-                            <div 
-                                className="cursor-grab"
-                                draggable
-                                onDragStart={(e) => handleDragStart(e, qIndex)}
-                                onDragEnter={(e) => handleDragEnter(e, qIndex)}
-                            >
-                              <h4 className="font-bold mb-2">السؤال {qIndex + 1}</h4>
-                              <textarea value={q.text} onChange={(e) => handleUpdateQuestion(qIndex, 'text', e.target.value)} placeholder="نص السؤال" className="w-full p-2 border rounded-lg mb-2 bg-white dark:bg-slate-600"></textarea>
-                            </div>
-                              <input
-                                type="text"
-                                placeholder="أدخل رابط صورة للسؤال (اختياري)"
-                                value={q.imageUrl}
-                                onChange={(e) => handleUpdateQuestion(qIndex, 'imageUrl', e.target.value)}
-                                className="w-full p-2 border rounded-lg mb-2 bg-white dark:bg-slate-600"
-                              />
-                              {q.imageUrl && <img src={q.imageUrl} className="w-32 h-32 object-cover rounded-lg my-2 mx-auto" alt="معاينة السؤال"/>}
-                              
-                              {q.options.map((opt, oIndex) => (
-                                  <div key={opt.id} className="flex items-center mb-2 bg-white dark:bg-slate-600 p-2 rounded-lg">
-                                      <input type="radio" name={`correct-answer-${q.id}`} checked={q.correctAnswer === opt.id} onChange={() => handleUpdateCorrectAnswer(qIndex, opt.id)} className="ml-2"/>
-                                      <input type="text" value={opt.text} onChange={(e) => handleUpdateOption(qIndex, oIndex, 'text', e.target.value)} placeholder={`الخيار ${String.fromCharCode(97 + oIndex)}`} className="p-2 border rounded-lg flex-grow bg-white dark:bg-slate-500"/>
-                                      <input type="text" placeholder="رابط صورة للخيار" value={opt.imageUrl} onChange={(e) => handleUpdateOption(qIndex, oIndex, 'imageUrl', e.target.value)} className="p-2 border rounded-lg w-1/3 ml-2 bg-white dark:bg-slate-500"/>
-                                      {opt.imageUrl && <img src={opt.imageUrl} className="w-16 h-16 object-cover rounded-md ml-2" alt="معاينة الخيار"/>}
-                                  </div>
-                              ))}
-                              <button onClick={() => handleDeleteQuestion(qIndex)} className="text-red-500 hover:text-red-700 text-xs mt-2">حذف السؤال</button>
-                          </div>
-                      ))}
-                      <div className="flex space-x-4 rtl:space-x-reverse">
-                          <button onClick={handleAddQuestion} className="bg-slate-200 dark:bg-slate-600 p-2 rounded-lg">إضافة سؤال</button>
-                          <button onClick={handleSaveNewTest} className="bg-green-500 text-white p-2 rounded-lg">{editingTestId ? 'تحديث الاختبار' : 'حفظ الاختبار'}</button>
-                          <button onClick={resetCreateTestForm} className="bg-red-500 text-white p-2 rounded-lg">إلغاء</button>
-                      </div>
-                  </div>
-              )}
-            </div>
-            
-            <div className="bg-white dark:bg-slate-800 p-6 rounded-xl shadow-lg">
-               <h2 className="text-2xl font-bold mb-4">الاختبارات الحالية</h2>
-                <div className="border-b border-slate-200 dark:border-slate-700 mb-4">
-                    <nav className="-mb-px flex space-x-8 rtl:space-x-reverse" aria-label="Tabs">
-                        <button onClick={() => setActiveTestTab('كمي')} className={`${activeTestTab === 'كمي' ? 'border-blue-500 text-blue-600' : 'border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300 dark:text-slate-400 dark:hover:text-slate-300'} whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm`}>
-                            كمي
-                        </button>
-                        <button onClick={() => setActiveTestTab('لفظي')} className={`${activeTestTab === 'لفظي' ? 'border-blue-500 text-blue-600' : 'border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300 dark:text-slate-400 dark:hover:text-slate-300'} whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm`}>
-                            لفظي
-                        </button>
-                    </nav>
-                </div>
-                
-                <div>
-                    {(testsData[activeTestTab]?.length ?? 0) === 0 ? (
-                        <p>لا توجد اختبارات في قسم {activeTestTab}.</p>
-                    ) : (
-                        <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-                            {testsData[activeTestTab].map(test => (
-                                <div key={test.id} className="p-4 bg-slate-50 dark:bg-slate-700 rounded-lg border dark:border-slate-600">
-                                    <h4 className="text-lg font-bold">{test.title}</h4>
-                                    <p>{test.questions.length} أسئلة</p>
-                                    <div className="mt-4 flex space-x-2 rtl:space-x-reverse">
-                                        <button onClick={() => handlePreviewQuiz(test)} className="flex-1 bg-blue-500 text-white p-2 rounded-lg">معاينة</button>
-                                        <button onClick={() => handleEditTest(test, activeTestTab)} className="flex-1 bg-yellow-500 text-white p-2 rounded-lg">تعديل</button>
-                                        <button onClick={() => handleDeleteTest(test.id)} className="flex-1 bg-red-500 text-white p-2 rounded-lg">حذف</button>
-                                    </div>
-                                </div>
-                            ))}
-                        </div>
-                    )}
-                </div>
-            </div>
-        </div>
-      );
-
-      const [userSearchTerm, setUserSearchTerm] = useState('');
-      const filteredUsers = usersData
-        .filter(user => 
-            user.username.toLowerCase().includes(userSearchTerm.toLowerCase())
-        )
-        .sort((a, b) => {
-            if (a.role === 'teacher' && b.role !== 'teacher') return -1;
-            if (a.role !== 'teacher' && b.role === 'teacher') return 1;
-            return a.username.localeCompare(b.username);
-        });
-
-      const renderUserManagementPage = () => (
-        <div className="bg-white dark:bg-slate-800 p-6 rounded-xl shadow-lg">
-            <div className="flex justify-between items-center mb-6">
-                <h2 className="text-2xl font-bold">الإدارة المتقدمة للمستخدمين</h2>
-                <button onClick={() => setDevPage('dashboard')} className="text-blue-500 hover:underline">
-                    &rarr; العودة إلى لوحة التحكم الرئيسية
-                </button>
-            </div>
-            <div className="mb-4">
-                <input 
-                    type="text"
-                    placeholder="ابحث عن اسم مستخدم..."
-                    value={userSearchTerm}
-                    onChange={(e) => setUserSearchTerm(e.target.value)}
-                    className="w-full p-3 bg-slate-50 dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded-lg"
-                />
-            </div>
-            <div className="overflow-x-auto">
-                <table className="w-full text-sm text-left text-slate-500 dark:text-slate-400">
-                    <thead className="text-xs text-slate-700 uppercase bg-slate-50 dark:bg-slate-700 dark:text-slate-400">
-                        <tr>
-                            <th scope="col" className="px-6 py-3">اسم المستخدم</th>
-                            <th scope="col" className="px-6 py-3">رمز الدخول</th>
-                            <th scope="col" className="px-6 py-3">الصلاحية</th>
-                            <th scope="col" className="px-6 py-3">الأقسام المتاحة</th>
-                            <th scope="col" className="px-6 py-3 text-center">الإجراءات</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {filteredUsers.map(user => (
-                            <tr key={user.username} className="bg-white dark:bg-slate-800 border-b dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-600">
-                                <td className="px-6 py-4 font-medium text-slate-900 dark:text-white">{user.username}</td>
-                                <td className="px-6 py-4">{user.accessCode}</td>
-                                <td className="px-6 py-4">
-                                    <span className={`px-2 py-1 rounded-full text-xs font-medium ${user.role === 'teacher' ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300' : 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300'}`}>
-                                        {user.role === 'teacher' ? 'مطور' : 'طالب'}
-                                    </span>
-                                </td>
-                                <td className="px-6 py-4">
-                                    <div className="flex items-center space-x-4 rtl:space-x-reverse">
-                                        <label className="flex items-center">
-                                            <input 
-                                                type="checkbox" 
-                                                checked={user.allowedSections?.includes('كمي') ?? true} 
-                                                onChange={() => handleSectionPermissionChange(user.id, 'كمي')}
-                                                className="form-checkbox h-4 w-4 text-blue-600 rounded"
-                                            />
-                                            <span className="mr-2">كمي</span>
-                                        </label>
-                                        <label className="flex items-center">
-                                            <input 
-                                                type="checkbox" 
-                                                checked={user.allowedSections?.includes('لفظي') ?? true} 
-                                                onChange={() => handleSectionPermissionChange(user.id, 'لفظي')}
-                                                className="form-checkbox h-4 w-4 text-green-600 rounded"
-                                            />
-                                            <span className="mr-2">لفظي</span>
-                                        </label>
-                                    </div>
-                                </td>
-                                <td className="px-6 py-4 flex items-center justify-center space-x-2 rtl:space-x-reverse">
-                                    <button onClick={() => handleShowUserScores(user)} title="عرض بيانات المستخدم" className="p-2 text-slate-500 hover:text-blue-600 dark:hover:text-blue-400">
-                                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path d="M10 12a2 2 0 100-4 2 2 0 000 4z" /><path fillRule="evenodd" d="M.458 10C3.732 4.943 9.522 3 10 3s6.268 1.943 9.542 7c-3.274 5.057-9.064 7-9.542 7S3.732 15.057.458 10zM14 10a4 4 0 11-8 0 4 4 0 018 0z" clipRule="evenodd" /></svg>
-                                    </button>
-                                    <button onClick={() => handleToggleUserRole(user.id)} title="اجعله مطور" className="p-2 text-slate-500 hover:text-green-600 dark:hover:text-green-400">
-                                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clipRule="evenodd" /></svg>
-                                    </button>
-                                    <button onClick={() => handleDeleteUser(user.id)} title="حذف المستخدم" className="p-2 text-slate-500 hover:text-red-600 dark:hover:text-red-400">
-                                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clipRule="evenodd" /></svg>
-                                    </button>
-                                </td>
-                            </tr>
-                        ))}
-                    </tbody>
-                </table>
-            </div>
-        </div>
-      );
-      
-      const Leaderboard = ({ users, limit = 10 }) => {
-        const leaderboardData = useMemo(() => {
-            return users
-                .filter(user => user.role === 'student') // Filter out teachers
-                .map(user => {
-                    const allAttempts = Object.values(user.scores).flat();
-                    const totalScored = allAttempts.reduce((acc, scoreData) => acc + scoreData.score, 0);
-                    const totalPossible = allAttempts.reduce((acc, scoreData) => acc + scoreData.total, 0);
-                    const overallPercentage = totalPossible > 0 ? ((totalScored / totalPossible) * 100) : 0;
-                    return { username: user.username, score: overallPercentage.toFixed(2) };
-                })
-                .sort((a, b) => b.score - a.score)
-                .slice(0, limit);
-        }, [users]);
-
-        const Medal = ({ rank }) => {
-            if (rank === 0) return <span title="المركز الأول" className="text-yellow-400">🥇</span>;
-            if (rank === 1) return <span title="المركز الثاني" className="text-slate-400">🥈</span>;
-            if (rank === 2) return <span title="المركز الثالث" className="text-yellow-600">🥉</span>;
-            return <span className="text-slate-400">{rank + 1}</span>;
-        };
-
-        return (
-            <div className="bg-white dark:bg-slate-800 p-6 rounded-xl shadow-lg">
-                <h2 className="text-2xl font-bold mb-4 text-center">قائمة المتصدرين</h2>
-                <ul className="space-y-4">
-                    {leaderboardData.map((user, index) => (
-                        <li key={user.username} className="flex items-center justify-between p-3 bg-slate-50 dark:bg-slate-700 rounded-lg">
-                            <div className="flex items-center">
-                                <span className="text-lg font-bold w-8 text-center"><Medal rank={index} /></span>
-                                <span className="font-medium text-slate-900 dark:text-white">{user.username}</span>
-                            </div>
-                            <span className="font-bold text-blue-500">{user.score}%</span>
-                        </li>
-                    ))}
-                </ul>
-            </div>
-        );
-      };
-
-      const ResultsDashboard = ({ users, onBack }) => {
-        const [highlightedIndex, setHighlightedIndex] = useState(null);
-        const [tooltip, setTooltip] = useState({ show: false, content: '', x: 0, y: 0 });
-        const containerRef = useRef(null);
-
-        const studentsData = useMemo(() => {
-            return users
-                .filter(user => user.role === 'student')
-                .map(user => {
-                    const allAttempts = Object.values(user.scores).flat();
-                    const totalScored = allAttempts.reduce((acc, scoreData) => acc + scoreData.score, 0);
-                    const totalPossible = allAttempts.reduce((acc, scoreData) => acc + scoreData.total, 0);
-                    const overallPercentage = totalPossible > 0 ? ((totalScored / totalPossible) * 100) : 0;
-                    return { name: user.username, score: Math.round(overallPercentage) };
-                })
-                .sort((a, b) => b.score - a.score);
-        }, [users]);
-
-        const Chart = () => {
-            const chartRef = useRef(null);
-            const [dimensions, setDimensions] = useState({ width: 0, height: 500 });
-
-            useEffect(() => {
-                const handleResize = () => {
-                    if (chartRef.current) {
-                        setDimensions({ width: chartRef.current.clientWidth, height: 500 });
-                    }
-                };
-                handleResize();
-                window.addEventListener('resize', handleResize);
-                return () => window.removeEventListener('resize', handleResize);
-            }, []);
-
-            if (dimensions.width === 0) {
-                return <div ref={chartRef} className="w-full h-[500px]"></div>;
-            }
-
-            const padding = { top: 20, right: 10, bottom: 20, left: 10 };
-            const chartWidth = dimensions.width - padding.left - padding.right;
-            const chartHeight = dimensions.height - padding.top - padding.bottom;
-            const barWidth = studentsData.length > 0 ? chartWidth / studentsData.length * 0.8 : 0;
-            const barSpacing = studentsData.length > 0 ? chartWidth / studentsData.length * 0.2 : 0;
-
-            return (
-                <div ref={chartRef} className="w-full">
-                    <svg width="100%" height={dimensions.height} viewBox={`0 0 ${dimensions.width} ${dimensions.height}`}>
-                        <g transform={`translate(${padding.left}, ${padding.top})`}>
-                            {/* Y-axis grid lines */}
-                            {Array.from({ length: 11 }).map((_, i) => {
-                                const y = chartHeight - (i * chartHeight / 10);
-                                return <line key={i} className="axis-line" x1={0} y1={y} x2={chartWidth} y2={y} />;
-                            })}
-                            {/* Bars */}
-                            {studentsData.map((student, i) => {
-                                const barHeight = (student.score / 100) * chartHeight;
-                                const xPos = i * (barWidth + barSpacing);
-                                const yPos = chartHeight - barHeight;
-                                return (
-                                    <rect
-                                        key={student.name}
-                                        className={`c-graph__bar ${highlightedIndex === i ? 'highlighted' : ''}`}
-                                        x={xPos}
-                                        y={yPos}
-                                        width={barWidth}
-                                        height={barHeight}
-                                        fill="#6d28d9"
-                                        rx="2"
-                                        onMouseMove={(e) => {
-                                            setTooltip({
-                                                show: true,
-                                                content: `<strong>${student.name}</strong><br>النسبة: ${student.score}%`,
-                                                x: e.pageX,
-                                                y: e.pageY
-                                            });
-                                        }}
-                                        onMouseLeave={() => setTooltip({ ...tooltip, show: false })}
-                                        onMouseEnter={() => setHighlightedIndex(i)}
-                                        onMouseOut={() => setHighlightedIndex(null)}
-                                    />
-                                );
-                            })}
-                        </g>
-                    </svg>
-                </div>
-            );
-        };
-
-        return (
-            <div className="bg-white dark:bg-slate-800 p-6 rounded-xl shadow-lg w-full" ref={containerRef}>
-                <div className="flex justify-between items-center mb-6">
-                    <h2 className="text-2xl font-bold">تحليل الأداء الفردي للطلاب</h2>
-                    <button onClick={onBack} className="text-blue-500 hover:underline">
-                        &rarr; العودة إلى لوحة التحكم الرئيسية
-                    </button>
-                </div>
-
-                <div className="main-container">
-                    <div className="chart-container">
-                        <Chart />
-                    </div>
-                    <div className="table-container">
-                        <table className="w-full text-sm text-left text-gray-500 dark:text-gray-400">
-                            <thead className="text-xs text-gray-700 uppercase bg-gray-50 dark:bg-gray-700 dark:text-gray-400 sticky top-0">
-                                <tr>
-                                    <th scope="col" className="px-6 py-3">اسم الطالب</th>
-                                    <th scope="col" className="px-6 py-3">النسبة</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {studentsData.map((student, index) => (
-                                    <tr
-                                        key={student.name}
-                                        className="bg-white dark:bg-slate-800 border-b dark:border-slate-700 hover:bg-gray-50 dark:hover:bg-slate-600"
-                                        onMouseEnter={() => setHighlightedIndex(index)}
-                                        onMouseLeave={() => setHighlightedIndex(null)}
-                                    >
-                                        <td className="px-6 py-4 font-medium text-gray-900 dark:text-white whitespace-nowrap">{student.name}</td>
-                                        <td className="px-6 py-4">{student.score}%</td>
-                                    </tr>
-                                ))}
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-                {tooltip.show && (
-                    <div
-                        id="tooltip"
-                        style={{ left: tooltip.x, top: tooltip.y, opacity: 1 }}
-                        dangerouslySetInnerHTML={{ __html: tooltip.content }}
-                    />
-                )}
-            </div>
-        );
-      };
-
-
       // Main Developer Dashboard Container
       const renderTeacherDashboard = () => (
         <div className="min-h-screen text-slate-900 dark:text-slate-100 p-4 sm:p-8">
@@ -1243,18 +1304,63 @@
                         <button onClick={handleReturnToLanding} className="bg-red-500 hover:bg-red-600 text-white font-bold py-2 px-4 rounded-xl">تسجيل الخروج</button>
                     </div>
                 </div>
-                {devPage === 'resultsDashboard' ? (
-                     <ResultsDashboard users={usersData} onBack={() => setDevPage('dashboard')} />
-                ) : (
-                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                        <div className="lg:col-span-2 order-2 lg:order-1">
-                            {devPage === 'dashboard' ? renderMainDashboard() : renderUserManagementPage()}
-                        </div>
-                        <div className="lg:col-span-1 order-1 lg:order-2">
-                            <Leaderboard users={usersData} />
-                        </div>
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                    <div className="lg:col-span-2 order-2 lg:order-1">
+                        {devPage === 'dashboard' && <MainDashboard 
+                          setDevPage={setDevPage}
+                          devUsernameToGenerate={devUsernameToGenerate}
+                          setDevUsernameToGenerate={setDevUsernameToGenerate}
+                          handleGenerateAccessCode={handleGenerateAccessCode}
+                          showCreateTestForm={showCreateTestForm}
+                          setShowCreateTestForm={setShowCreateTestForm}
+                          setNewTestCategory={setNewTestCategory}
+                          editingTestId={editingTestId}
+                          newTestCategory={newTestCategory}
+                          newTestTitle={newTestTitle}
+                          setNewTestTitle={setNewTestTitle}
+                          newTestDuration={newTestDuration}
+                          setNewTestDuration={setNewTestDuration}
+                          newTestMaxAttempts={newTestMaxAttempts}
+                          setNewTestMaxAttempts={setNewTestMaxAttempts}
+                          newTestPrerequisite={newTestPrerequisite}
+                          setNewTestPrerequisite={setNewTestPrerequisite}
+                          newTestQuestions={newTestQuestions}
+                          handleDragStart={handleDragStart}
+                          handleDragEnter={handleDragEnter}
+                          handleUpdateQuestion={handleUpdateQuestion}
+                          handleUpdateOption={handleUpdateOption}
+                          handleUpdateCorrectAnswer={handleUpdateCorrectAnswer}
+                          handleDeleteQuestion={handleDeleteQuestion}
+                          handleAddQuestion={handleAddQuestion}
+                          handleSaveNewTest={handleSaveNewTest}
+                          resetCreateTestForm={resetCreateTestForm}
+                          testsData={testsData}
+                          activeTestTab={activeTestTab}
+                          setActiveTestTab={setActiveTestTab}
+                          dragTest={dragTest}
+                          dragOverTest={dragOverTest}
+                          handleTestSort={handleTestSort}
+                          handlePreviewQuiz={handlePreviewQuiz}
+                          handleEditTest={handleEditTest}
+                          handleDeleteTest={handleDeleteTest}
+                        />}
+                        {devPage === 'users' && <UserManagementPage 
+                           setDevPage={setDevPage}
+                           usersData={usersData}
+                           handleShowUserScores={handleShowUserScores}
+                           handleToggleUserRole={handleToggleUserRole}
+                           handleDeleteUser={handleDeleteUser}
+                           handleSectionPermissionChange={handleSectionPermissionChange}
+                        />}
+                        {devPage === 'results' && <ResultsManagementPage 
+                            setDevPage={setDevPage} 
+                            usersData={usersData} 
+                        />}
                     </div>
-                )}
+                    <div className="lg:col-span-1 order-1 lg:order-2">
+                        <Leaderboard users={usersData} />
+                    </div>
+                </div>
             </div>
         </div>
       );
@@ -1275,7 +1381,7 @@
         const allTests = [
             ...(allowedSections.includes('كمي') ? (testsData['كمي'] || []) : []),
             ...(allowedSections.includes('لفظي') ? (testsData['لفظي'] || []) : [])
-        ];
+        ].sort((a, b) => a.title.localeCompare(b.title, 'ar', { numeric: true }));
         
         const allAttempts = Object.values(currentUserData.scores).flat();
         const totalScored = allAttempts.reduce((acc, scoreData) => acc + scoreData.score, 0);
@@ -1338,10 +1444,7 @@
       };
 
       const renderPreviewPage = () => {
-        if (!previewQuiz) {
-          return null;
-        }
-
+        if (!previewQuiz) return null;
         const question = previewQuiz.questions[currentQuestionIndex];
         const isFirstQuestion = currentQuestionIndex === 0;
         const isLastQuestion = currentQuestionIndex === previewQuiz.questions.length - 1;
@@ -1360,23 +1463,13 @@
               </div>
 
               <div className="bg-slate-50 dark:bg-slate-700 p-6 rounded-xl shadow-inner mb-6 border border-slate-200 dark:border-slate-600">
-                {question.imageUrl && (
-                  <img
-                    src={question.imageUrl}
-                    alt={`صورة للسؤال رقم ${currentQuestionIndex + 1}`}
-                    className="w-full max-h-60 object-contain rounded-lg mb-4"
-                  />
-                )}
+                {question.imageUrl && <img src={question.imageUrl} alt={`صورة للسؤال رقم ${currentQuestionIndex + 1}`} className="w-full max-h-60 object-contain rounded-lg mb-4"/>}
                 <p className="text-lg font-semibold text-slate-900 dark:text-white mb-4">
                   {currentQuestionIndex + 1}. {question.text}
                 </p>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   {question.options.map(option => (
-                    <div
-                      key={option.id}
-                      className={`flex flex-col items-center justify-center p-4 rounded-lg border-2
-                      ${question.correctAnswer === option.id ? 'bg-green-100 dark:bg-green-900 border-green-500' : 'bg-white dark:bg-slate-800'}`}
-                    >
+                    <div key={option.id} className={`flex flex-col items-center justify-center p-4 rounded-lg border-2 ${question.correctAnswer === option.id ? 'bg-green-100 dark:bg-green-900 border-green-500' : 'bg-white dark:bg-slate-800'}`}>
                       {option.imageUrl && <img src={option.imageUrl} className="w-24 h-24 object-contain rounded-md mb-2" />}
                       <span className="text-slate-900 dark:text-white text-center font-bold">{option.text}</span>
                     </div>
@@ -1385,20 +1478,10 @@
               </div>
               
               <div className="mt-8 flex justify-between">
-                <button
-                  onClick={() => setCurrentQuestionIndex(prevIndex => prevIndex - 1)}
-                  disabled={isFirstQuestion}
-                  className={`bg-slate-500 hover:bg-slate-600 text-white font-bold py-3 px-8 rounded-xl transition duration-300 transform hover:scale-105 shadow-md
-                  ${isFirstQuestion ? 'opacity-50 cursor-not-allowed' : ''}`}
-                >
+                <button onClick={() => setCurrentQuestionIndex(prev => prev - 1)} disabled={isFirstQuestion} className={`bg-slate-500 hover:bg-slate-600 text-white font-bold py-3 px-8 rounded-xl transition duration-300 transform hover:scale-105 shadow-md ${isFirstQuestion ? 'opacity-50 cursor-not-allowed' : ''}`}>
                   السابق
                 </button>
-                <button
-                  onClick={() => setCurrentQuestionIndex(prevIndex => prevIndex + 1)}
-                  disabled={isLastQuestion}
-                  className={`bg-blue-500 hover:bg-blue-600 text-white font-bold py-3 px-8 rounded-xl transition duration-300 transform hover:scale-105 shadow-md
-                  ${isLastQuestion ? 'opacity-50 cursor-not-allowed' : ''}`}
-                >
+                <button onClick={() => setCurrentQuestionIndex(prev => prev + 1)} disabled={isLastQuestion} className={`bg-blue-500 hover:bg-blue-600 text-white font-bold py-3 px-8 rounded-xl transition duration-300 transform hover:scale-105 shadow-md ${isLastQuestion ? 'opacity-50 cursor-not-allowed' : ''}`}>
                   التالي
                 </button>
               </div>
@@ -1407,7 +1490,6 @@
         );
       };
 
-      // Render the Test page
       const renderTestPage = () => {
         if (!selectedTest) return null;
         const question = selectedTest.questions[currentQuestionIndex];
@@ -1428,24 +1510,13 @@
               </div>
 
               <div className="bg-slate-50 dark:bg-slate-700 p-6 rounded-xl shadow-inner mb-6 border border-slate-200 dark:border-slate-600">
-                {question.imageUrl && (
-                  <img
-                    src={question.imageUrl}
-                    alt={`صورة للسؤال رقم ${currentQuestionIndex + 1}`}
-                    className="w-full max-h-60 object-contain rounded-lg mb-4"
-                  />
-                )}
+                {question.imageUrl && <img src={question.imageUrl} alt={`صورة للسؤال رقم ${currentQuestionIndex + 1}`} className="w-full max-h-60 object-contain rounded-lg mb-4"/>}
                 <p className="text-lg font-semibold text-slate-900 dark:text-white mb-4">
                   {currentQuestionIndex + 1}. {question.text}
                 </p>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   {question.options.map(option => (
-                    <label
-                      key={option.id}
-                      onClick={() => handleAnswerChange(question.id, option.id)}
-                      className={`flex flex-col items-center justify-center cursor-pointer p-4 rounded-lg border-2 transition duration-200
-                      ${answers[question.id] === option.id ? 'bg-blue-100 dark:bg-blue-900 border-blue-500' : 'bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700'}`}
-                    >
+                    <label key={option.id} onClick={() => handleAnswerChange(question.id, option.id)} className={`flex flex-col items-center justify-center cursor-pointer p-4 rounded-lg border-2 transition duration-200 ${answers[question.id] === option.id ? 'bg-blue-100 dark:bg-blue-900 border-blue-500' : 'bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700'}`}>
                       {option.imageUrl && <img src={option.imageUrl} className="w-24 h-24 object-contain rounded-md mb-2" />}
                       <span className="text-slate-900 dark:text-white text-center font-bold">{option.text}</span>
                     </label>
@@ -1454,28 +1525,15 @@
               </div>
               
               <div className="mt-8 flex justify-between">
-                <button
-                  onClick={handlePreviousQuestion}
-                  disabled={isFirstQuestion}
-                  className={`bg-slate-500 hover:bg-slate-600 text-white font-bold py-3 px-8 rounded-xl transition duration-300 transform hover:scale-105 shadow-md
-                  ${isFirstQuestion ? 'opacity-50 cursor-not-allowed' : ''}`}
-                >
+                <button onClick={handlePreviousQuestion} disabled={isFirstQuestion} className={`bg-slate-500 hover:bg-slate-600 text-white font-bold py-3 px-8 rounded-xl transition duration-300 transform hover:scale-105 shadow-md ${isFirstQuestion ? 'opacity-50 cursor-not-allowed' : ''}`}>
                   السابق
                 </button>
                 {isLastQuestion ? (
-                  <button
-                    onClick={handleSubmitTest}
-                    disabled={quizSubmitted}
-                    className={`bg-green-500 hover:bg-green-600 text-white font-bold py-3 px-8 rounded-xl transition duration-300 transform hover:scale-105 shadow-md
-                    ${quizSubmitted ? 'opacity-50 cursor-not-allowed' : ''}`}
-                  >
+                  <button onClick={handleSubmitTest} disabled={quizSubmitted} className={`bg-green-500 hover:bg-green-600 text-white font-bold py-3 px-8 rounded-xl transition duration-300 transform hover:scale-105 shadow-md ${quizSubmitted ? 'opacity-50 cursor-not-allowed' : ''}`}>
                     إرسال الاختبار
                   </button>
                 ) : (
-                  <button
-                    onClick={handleNextQuestion}
-                    className="bg-blue-500 hover:bg-blue-600 text-white font-bold py-3 px-8 rounded-xl transition duration-300 transform hover:scale-105 shadow-md"
-                  >
+                  <button onClick={handleNextQuestion} className="bg-blue-500 hover:bg-blue-600 text-white font-bold py-3 px-8 rounded-xl transition duration-300 transform hover:scale-105 shadow-md">
                     التالي
                   </button>
                 )}
@@ -1485,16 +1543,12 @@
         );
       };
 
-      // Render the results page
       const renderResultsPage = () => {
         if (!selectedTest) return null;
         let score = 0;
         let totalQuestions = selectedTest.questions.length;
-
-        selectedTest.questions.forEach(question => {
-          if (answers[question.id] === question.correctAnswer) {
-            score++;
-          }
+        selectedTest.questions.forEach(q => {
+          if (answers[q.id] === q.correctAnswer) score++;
         });
         
         const percentage = (score / totalQuestions) * 100;
@@ -1527,15 +1581,9 @@
               <div className="text-right">
                 {selectedTest.questions.map((question, qIndex) => (
                   <div key={question.id} className="bg-slate-50 dark:bg-slate-700 p-6 rounded-xl shadow-inner mb-6 border border-slate-200 dark:border-slate-600 text-right">
-                    {question.imageUrl && (
-                      <img
-                        src={question.imageUrl}
-                        alt={`صورة للسؤال رقم ${qIndex + 1}`}
-                        className="w-full max-h-60 object-contain rounded-lg mb-4"
-                      />
-                    )}
+                    {question.imageUrl && <img src={question.imageUrl} alt={`صورة للسؤال رقم ${qIndex + 1}`} className="w-full max-h-60 object-contain rounded-lg mb-4"/>}
                     <p className="text-lg font-semibold text-slate-900 dark:text-white mb-2">
-                      {currentQuestionIndex + 1}. <MathComponent text={question.text} />
+                      {qIndex + 1}. <MathComponent text={question.text} />
                     </p>
                     <div className="mt-2 text-slate-700 dark:text-slate-300">
                       <p className={`mb-1 ${answers[question.id] === question.correctAnswer ? 'text-green-600' : 'text-red-600'}`}>
@@ -1544,16 +1592,12 @@
                       <p>
                         <span className="font-bold text-green-600 dark:text-green-400">الإجابة الصحيحة:</span> <MathComponent text={question.options.find(opt => opt.id === question.correctAnswer)?.text} />
                       </p>
-                      
                     </div>
                   </div>
                 ))}
               </div>
 
-              <button
-                onClick={() => setCurrentPage('dashboard')}
-                className="mt-8 bg-blue-500 hover:bg-blue-600 text-white font-bold py-3 px-6 rounded-xl transition duration-300 transform hover:scale-105 shadow-md"
-              >
+              <button onClick={() => setCurrentPage('dashboard')} className="mt-8 bg-blue-500 hover:bg-blue-600 text-white font-bold py-3 px-6 rounded-xl transition duration-300 transform hover:scale-105 shadow-md">
                 العودة إلى لوحة التحكم
               </button>
             </div>
@@ -1644,20 +1688,13 @@
       // Render the correct page based on the current state
       const renderCurrentPage = () => {
         switch (currentPage) {
-          case 'landing':
-            return renderLandingPage();
-          case 'login':
-            return renderLoginPage();
-          case 'dashboard':
-            return currentUser?.role?.includes('teacher') || currentUser?.role === 'superadmin' ? renderTeacherDashboard() : renderStudentDashboard();
-          case 'test':
-            return renderTestPage();
-          case 'results':
-            return renderResultsPage();
-          case 'preview':
-            return renderPreviewPage();
-          default:
-            return renderLandingPage();
+          case 'landing': return renderLandingPage();
+          case 'login': return renderLoginPage();
+          case 'dashboard': return currentUser?.role?.includes('teacher') || currentUser?.role === 'superadmin' ? renderTeacherDashboard() : renderStudentDashboard();
+          case 'test': return renderTestPage();
+          case 'results': return renderResultsPage();
+          case 'preview': return renderPreviewPage();
+          default: return renderLandingPage();
         }
       };
       
@@ -1677,3 +1714,4 @@
   </script>
 </body>
 </html>
+
