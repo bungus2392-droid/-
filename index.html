@@ -200,8 +200,58 @@
       handleEditTest,
       handleDeleteTest,
       newTestDifficulty,
-      setNewTestDifficulty
+      setNewTestDifficulty,
+      levels,
+      handleAddNewLevel,
+      handleMoveTest,
+      handleDeleteLevel,
+      handleUpdateLevel
     }) => {
+      const [newLevelName, setNewLevelName] = useState('');
+      const [draggedTestId, setDraggedTestId] = useState(null);
+      const [editingLevel, setEditingLevel] = useState(null);
+
+      const levelsForCategory = useMemo(() => 
+          levels.filter(l => l.category === activeTestTab)
+          .sort((a,b) => (a.order || 0) - (b.order || 0)), 
+      [levels, activeTestTab]);
+
+      const testsByLevel = useMemo(() => {
+          const grouped = {};
+          levelsForCategory.forEach(l => grouped[l.id] = []);
+          grouped['unassigned'] = [];
+
+          (testsData[activeTestTab] || []).forEach(test => {
+              if (test.levelId && grouped[test.levelId]) {
+                  grouped[test.levelId].push(test);
+              } else {
+                  grouped['unassigned'].push(test);
+              }
+          });
+          return grouped;
+      }, [testsData, levelsForCategory, activeTestTab]);
+
+      const onAddNewLevel = () => {
+          if (newLevelName.trim()) {
+              handleAddNewLevel(newLevelName, activeTestTab);
+              setNewLevelName('');
+          }
+      };
+
+      const onUpdateLevel = () => {
+          if (editingLevel && editingLevel.name.trim()) {
+              handleUpdateLevel(editingLevel.id, editingLevel.name);
+              setEditingLevel(null);
+          }
+      };
+      
+      const handleDropOnLevel = (levelId) => {
+          if (draggedTestId) {
+              handleMoveTest(draggedTestId, levelId);
+              setDraggedTestId(null);
+          }
+      };
+
       return (
         <div className="space-y-8">
             <div className="bg-white dark:bg-slate-800 p-6 rounded-xl shadow-lg">
@@ -307,33 +357,84 @@
                     </nav>
                 </div>
                 
-                <div>
-                    {(testsData[activeTestTab]?.length ?? 0) === 0 ? (
-                        <p>لا توجد اختبارات في قسم {activeTestTab}.</p>
-                    ) : (
-                        <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-                            {testsData[activeTestTab].map((test, index) => (
-                                <div 
-                                    key={test.id} 
-                                    className="p-4 bg-slate-50 dark:bg-slate-700 rounded-lg border dark:border-slate-600 cursor-move"
-                                    draggable
-                                    onDragStart={() => dragTest.current = index}
-                                    onDragEnter={() => dragOverTest.current = index}
-                                    onDragEnd={handleTestSort}
-                                    onDragOver={(e) => e.preventDefault()}
-                                >
-                                    <h4 className="text-lg font-bold">{test.title}</h4>
-                                    <p>{test.questions.length} أسئلة</p>
-                                    <p className="text-sm text-slate-500">الصعوبة: {test.difficulty || 'متوسط'}</p>
-                                    <div className="mt-4 flex space-x-2 rtl:space-x-reverse">
-                                        <button onClick={() => handlePreviewQuiz(test)} className="flex-1 bg-blue-500 text-white p-2 rounded-lg">معاينة</button>
-                                        <button onClick={() => handleEditTest(test, activeTestTab)} className="flex-1 bg-yellow-500 text-white p-2 rounded-lg">تعديل</button>
-                                        <button onClick={() => handleDeleteTest(test.id)} className="flex-1 bg-red-500 text-white p-2 rounded-lg">حذف</button>
+                 <div className="mb-4 flex space-x-2 rtl:space-x-reverse">
+                    <input 
+                        type="text"
+                        value={newLevelName}
+                        onChange={(e) => setNewLevelName(e.target.value)}
+                        placeholder="اسم المستوى الجديد"
+                        className="p-2 border rounded-lg flex-grow bg-slate-50 dark:bg-slate-700"
+                    />
+                    <button onClick={onAddNewLevel} className="bg-indigo-500 text-white py-2 px-4 rounded-lg">إضافة مستوى</button>
+                </div>
+
+                <div className="space-y-4">
+                    {levelsForCategory.map(level => (
+                        <div 
+                            key={level.id}
+                            className="bg-slate-100 dark:bg-slate-700 p-4 rounded-lg"
+                            onDragOver={e => e.preventDefault()}
+                            onDrop={() => handleDropOnLevel(level.id)}
+                        >
+                           <div className="flex justify-between items-center mb-2">
+                                {editingLevel?.id === level.id ? (
+                                    <div className="flex-grow flex items-center space-x-2 rtl:space-x-reverse">
+                                        <input 
+                                            type="text" 
+                                            value={editingLevel.name}
+                                            onChange={(e) => setEditingLevel({...editingLevel, name: e.target.value})}
+                                            className="p-1 border rounded-lg flex-grow bg-white dark:bg-slate-600"
+                                        />
+                                        <button onClick={onUpdateLevel} className="bg-green-500 text-white p-1 rounded-md text-xs">حفظ</button>
+                                        <button onClick={() => setEditingLevel(null)} className="bg-gray-500 text-white p-1 rounded-md text-xs">إلغاء</button>
+                                    </div>
+                                ) : (
+                                    <>
+                                        <h3 className="font-bold text-lg">{level.name}</h3>
+                                        <div className="flex space-x-2 rtl:space-x-reverse">
+                                            <button onClick={() => setEditingLevel({id: level.id, name: level.name})} className="text-blue-500 hover:text-blue-700 text-xs">تعديل</button>
+                                            <button onClick={() => handleDeleteLevel(level.id)} className="text-red-500 hover:text-red-700 text-xs">حذف</button>
+                                        </div>
+                                    </>
+                                )}
+                            </div>
+                             <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+                                {(testsByLevel[level.id] || []).map(test => (
+                                     <div key={test.id} draggable onDragStart={() => setDraggedTestId(test.id)} className="p-4 bg-white dark:bg-slate-600 rounded-lg border dark:border-slate-500 cursor-move">
+                                        <h4 className="text-md font-bold">{test.title}</h4>
+                                        <p className="text-sm">{test.questions.length} أسئلة</p>
+                                        <p className="text-xs text-slate-500 dark:text-slate-400">الصعوبة: {test.difficulty || 'متوسط'}</p>
+                                        <div className="mt-2 flex space-x-2 rtl:space-x-reverse">
+                                            <button onClick={() => handlePreviewQuiz(test)} className="flex-1 bg-blue-500 text-white p-1 rounded-md text-sm">معاينة</button>
+                                            <button onClick={() => handleEditTest(test, activeTestTab)} className="flex-1 bg-yellow-500 text-white p-1 rounded-md text-sm">تعديل</button>
+                                            <button onClick={() => handleDeleteTest(test.id)} className="flex-1 bg-red-500 text-white p-1 rounded-md text-sm">حذف</button>
+                                        </div>
+                                    </div>
+                                ))}
+                             </div>
+                        </div>
+                    ))}
+                    <div 
+                        className="bg-slate-200 dark:bg-slate-800 p-4 rounded-lg border-2 border-dashed border-slate-400"
+                        onDragOver={e => e.preventDefault()}
+                        onDrop={() => handleDropOnLevel(null)}
+                    >
+                         <h3 className="font-bold text-lg mb-2 text-slate-500">اختبارات غير مصنفة</h3>
+                         <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+                            {(testsByLevel['unassigned'] || []).map(test => (
+                                <div key={test.id} draggable onDragStart={() => setDraggedTestId(test.id)} className="p-4 bg-white dark:bg-slate-600 rounded-lg border dark:border-slate-500 cursor-move">
+                                    <h4 className="text-md font-bold">{test.title}</h4>
+                                    <p className="text-sm">{test.questions.length} أسئلة</p>
+                                    <p className="text-xs text-slate-500 dark:text-slate-400">الصعوبة: {test.difficulty || 'متوسط'}</p>
+                                    <div className="mt-2 flex space-x-2 rtl:space-x-reverse">
+                                        <button onClick={() => handlePreviewQuiz(test)} className="flex-1 bg-blue-500 text-white p-1 rounded-md text-sm">معاينة</button>
+                                        <button onClick={() => handleEditTest(test, activeTestTab)} className="flex-1 bg-yellow-500 text-white p-1 rounded-md text-sm">تعديل</button>
+                                        <button onClick={() => handleDeleteTest(test.id)} className="flex-1 bg-red-500 text-white p-1 rounded-md text-sm">حذف</button>
                                     </div>
                                 </div>
                             ))}
-                        </div>
-                    )}
+                         </div>
+                    </div>
                 </div>
             </div>
         </div>
@@ -803,7 +904,9 @@
     function App() {
       const [testsData, setTestsData] = useState({ 'كمي': [], 'لفظي': [] });
       const [usersData, setUsersData] = useState([]);
+      const [levels, setLevels] = useState([]);
       const [isDataLoaded, setIsDataLoaded] = useState(false);
+      const [openLevel, setOpenLevel] = useState(null);
 
       useEffect(() => {
         if (!db) {
@@ -829,12 +932,22 @@
                 newUsersData.push({ id: doc.id, ...doc.data() });
             });
             setUsersData(newUsersData);
+        });
+        
+        const unsubscribeLevels = window.firebase.onSnapshot(window.firebase.collection(db, "levels"), (snapshot) => {
+            const newLevelsData = [];
+            snapshot.forEach(doc => {
+                newLevelsData.push({ id: doc.id, ...doc.data() });
+            });
+            setLevels(newLevelsData);
             setIsDataLoaded(true);
         });
+
 
         return () => {
             unsubscribeTests();
             unsubscribeUsers();
+            unsubscribeLevels();
         };
       }, []);
 
@@ -1009,6 +1122,27 @@
             await window.firebase.deleteDoc(window.firebase.doc(db, "tests", testId));
         }
       };
+      
+      const handleDeleteLevel = async (levelId) => {
+        if (!window.confirm('هل أنت متأكد من حذف هذا المستوى؟ سيتم نقل جميع الاختبارات داخله إلى قسم "غير مصنفة".')) return;
+        
+        const allTests = [...testsData['كمي'], ...testsData['لفظي']];
+        const testsToUpdate = allTests.filter(test => test.levelId === levelId);
+        
+        const updatePromises = testsToUpdate.map(test => {
+            const testRef = window.firebase.doc(db, "tests", test.id);
+            return window.firebase.updateDoc(testRef, { levelId: null });
+        });
+        
+        await Promise.all(updatePromises);
+        await window.firebase.deleteDoc(window.firebase.doc(db, "levels", levelId));
+    };
+
+    const handleUpdateLevel = async (levelId, newName) => {
+        if (newName.trim() === '') return;
+        const levelRef = window.firebase.doc(db, "levels", levelId);
+        await window.firebase.updateDoc(levelRef, { name: newName });
+    };
 
       const handleReturnToLanding = () => {
         setDevUsername('');
@@ -1239,6 +1373,21 @@
           setUploadedFile(file);
           setShowFileUploadModal(true);
         }
+      };
+      
+      const handleAddNewLevel = async (levelName, category) => {
+        if (levelName.trim() === '') return;
+        await window.firebase.addDoc(window.firebase.collection(db, "levels"), {
+            name: levelName,
+            category: category,
+            order: levels.filter(l => l.category === category).length
+        });
+      };
+      
+      const handleMoveTest = async (testId, levelId) => {
+          if(!testId) return;
+          const testRef = window.firebase.doc(db, "tests", testId);
+          await window.firebase.updateDoc(testRef, { levelId: levelId });
       };
 
       const handleGenerateQuizFromFile = async () => {
@@ -1532,6 +1681,11 @@
                           handlePreviewQuiz={handlePreviewQuiz}
                           handleEditTest={handleEditTest}
                           handleDeleteTest={handleDeleteTest}
+                          levels={levels}
+                          handleAddNewLevel={handleAddNewLevel}
+                          handleMoveTest={handleMoveTest}
+                          handleDeleteLevel={handleDeleteLevel}
+                          handleUpdateLevel={handleUpdateLevel}
                         />}
                         {devPage === 'users' && <UserManagementPage 
                            setDevPage={setDevPage}
@@ -1571,12 +1725,29 @@
         const allTests = [
             ...(allowedSections.includes('كمي') ? (testsData['كمي'] || []) : []),
             ...(allowedSections.includes('لفظي') ? (testsData['لفظي'] || []) : [])
-        ].sort((a, b) => a.title.localeCompare(b.title, 'ar', { numeric: true }));
+        ];
         
+        const levelsForCategory = (category) => levels
+            .filter(l => l.category === category)
+            .sort((a,b) => (a.order || 0) - (b.order || 0));
+            
+        const testsByLevel = (category) => {
+            const grouped = {};
+            levelsForCategory(category).forEach(l => grouped[l.id] = []);
+            
+            allTests.filter(t => t.category === category).forEach(test => {
+                if (test.levelId && grouped[test.levelId]) {
+                    grouped[test.levelId].push(test);
+                }
+            });
+            return grouped;
+        };
+
         const allAttempts = Object.values(currentUserData.scores).flat();
         const totalScored = allAttempts.reduce((acc, scoreData) => acc + scoreData.score, 0);
         const totalPossible = allAttempts.reduce((acc, scoreData) => acc + scoreData.total, 0);
         const overallPercentage = totalPossible > 0 ? ((totalScored / totalPossible) * 100).toFixed(2) : 0;
+        
 
         return (
           <div className="min-h-screen text-slate-900 dark:text-slate-100 p-4 sm:p-8">
@@ -1603,29 +1774,47 @@
                 
                 <div className="bg-white dark:bg-slate-800 p-6 rounded-xl shadow-lg mb-8">
                   <h2 className="text-2xl font-bold mb-4">الاختبارات المتاحة</h2>
-                  <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-                    {allTests.length > 0 ? allTests.map(test => {
-                      const attemptsLeft = currentUserData.attemptsLeft[test.id] !== undefined
-                        ? currentUserData.attemptsLeft[test.id]
-                        : test.maxAttempts;
-                      const prerequisite = test.prerequisitePercentage || 0;
-                      const isLocked = overallPercentage < prerequisite;
+                  <div className="space-y-4">
+                    {allowedSections.map(category => (
+                        <div key={category}>
+                            <h3 className="text-xl font-bold mb-2">{category}</h3>
+                            {levelsForCategory(category).map(level => {
+                                const testsInLevel = testsByLevel(category)[level.id] || [];
+                                if(testsInLevel.length === 0) return null;
+                                return (
+                                    <div key={level.id} className="mb-2">
+                                        <button onClick={() => setOpenLevel(openLevel === level.id ? null : level.id)} className="w-full text-right bg-slate-100 dark:bg-slate-700 p-3 rounded-lg font-bold">
+                                            {level.name}
+                                        </button>
+                                        {openLevel === level.id && (
+                                            <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6 p-4">
+                                                {testsInLevel.map(test => {
+                                                    const attemptsLeft = currentUserData.attemptsLeft[test.id] !== undefined ? currentUserData.attemptsLeft[test.id] : test.maxAttempts;
+                                                    const prerequisite = test.prerequisitePercentage || 0;
+                                                    const isLocked = overallPercentage < prerequisite;
 
-                      return (
-                        <div key={test.id} className="p-4 bg-slate-50 dark:bg-slate-700 rounded-lg border dark:border-slate-600">
-                          <h3 className="text-xl font-bold">{test.title}</h3>
-                          <p>المدة: {test.duration} دقيقة</p>
-                          <p>المحاولات المتبقية: {attemptsLeft}</p>
-                          {isLocked && <p className="text-sm text-red-500 mt-1">مغلق (يتطلب {prerequisite}% للوصول)</p>}
-                          <button 
-                            onClick={() => handleStartTest(test.id)}
-                            disabled={attemptsLeft <= 0 || isLocked}
-                            className="mt-4 w-full bg-blue-500 text-white p-2 rounded-lg disabled:bg-slate-400">
-                            {isLocked ? 'مغلق' : (attemptsLeft > 0 ? 'ابدأ الاختبار' : 'لا توجد محاولات')}
-                          </button>
+                                                    return (
+                                                        <div key={test.id} className="p-4 bg-slate-50 dark:bg-slate-600 rounded-lg border dark:border-slate-500">
+                                                            <h3 className="text-lg font-bold">{test.title}</h3>
+                                                            <p>المدة: {test.duration} دقيقة</p>
+                                                            <p>المحاولات المتبقية: {attemptsLeft}</p>
+                                                            {isLocked && <p className="text-sm text-red-500 mt-1">مغلق (يتطلب {prerequisite}% للوصول)</p>}
+                                                            <button 
+                                                                onClick={() => handleStartTest(test.id)}
+                                                                disabled={attemptsLeft <= 0 || isLocked}
+                                                                className="mt-4 w-full bg-blue-500 text-white p-2 rounded-lg disabled:bg-slate-400">
+                                                                {isLocked ? 'مغلق' : (attemptsLeft > 0 ? 'ابدأ الاختبار' : 'لا توجد محاولات')}
+                                                            </button>
+                                                        </div>
+                                                    );
+                                                })}
+                                            </div>
+                                        )}
+                                    </div>
+                                )
+                            })}
                         </div>
-                      );
-                    }) : <p>لا توجد اختبارات متاحة لك حالياً.</p>}
+                    ))}
                   </div>
                 </div>
             </div>
