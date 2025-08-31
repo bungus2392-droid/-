@@ -55,7 +55,7 @@
         box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
       }
       .c-graph__bar {
-        transition: all 0.2s ease-in-out;
+        transition: all 1s ease-out;
         cursor: pointer;
       }
       .c-graph__bar.highlighted {
@@ -198,7 +198,9 @@
       handleTestSort,
       handlePreviewQuiz,
       handleEditTest,
-      handleDeleteTest
+      handleDeleteTest,
+      newTestDifficulty,
+      setNewTestDifficulty
     }) => {
       return (
         <div className="space-y-8">
@@ -238,8 +240,13 @@
               ) : (
                   <div>
                       <h3 className="text-xl font-semibold mb-4">{editingTestId ? `تعديل اختبار ${newTestCategory}` : `إضافة اختبار ${newTestCategory} جديد`}</h3>
-                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
                           <input type="text" placeholder="عنوان الاختبار" value={newTestTitle} onChange={(e) => setNewTestTitle(e.target.value)} className="p-2 border rounded-lg bg-slate-50 dark:bg-slate-700" />
+                          <select value={newTestDifficulty} onChange={(e) => setNewTestDifficulty(e.target.value)} className="p-2 border rounded-lg bg-slate-50 dark:bg-slate-700">
+                                <option value="سهل">سهل</option>
+                                <option value="متوسط">متوسط</option>
+                                <option value="صعب">صعب</option>
+                          </select>
                           <input type="number" placeholder="المدة (دقائق)" value={newTestDuration} onChange={(e) => setNewTestDuration(e.target.value)} className="p-2 border rounded-lg bg-slate-50 dark:bg-slate-700" />
                           <input type="number" placeholder="أقصى عدد محاولات" value={newTestMaxAttempts} onChange={(e) => setNewTestMaxAttempts(e.target.value)} className="p-2 border rounded-lg bg-slate-50 dark:bg-slate-700" />
                           <input type="number" placeholder="النسبة المطلوبة (%)" value={newTestPrerequisite} onChange={(e) => setNewTestPrerequisite(e.target.value)} className="p-2 border rounded-lg bg-slate-50 dark:bg-slate-700" />
@@ -317,6 +324,7 @@
                                 >
                                     <h4 className="text-lg font-bold">{test.title}</h4>
                                     <p>{test.questions.length} أسئلة</p>
+                                    <p className="text-sm text-slate-500">الصعوبة: {test.difficulty || 'متوسط'}</p>
                                     <div className="mt-4 flex space-x-2 rtl:space-x-reverse">
                                         <button onClick={() => handlePreviewQuiz(test)} className="flex-1 bg-blue-500 text-white p-2 rounded-lg">معاينة</button>
                                         <button onClick={() => handleEditTest(test, activeTestTab)} className="flex-1 bg-yellow-500 text-white p-2 rounded-lg">تعديل</button>
@@ -446,7 +454,7 @@
             const containerHeight = 500;
             const chartWidth = containerWidth - padding.left - padding.right;
             const chartHeight = containerHeight - padding.top - padding.bottom;
-
+            
             const svgNS = "http://www.w3.org/2000/svg";
             const svg = document.createElementNS(svgNS, 'svg');
             svg.setAttribute('width', '100%');
@@ -474,21 +482,27 @@
             data.forEach((student, i) => {
                 const barHeight = (student.score / 100) * chartHeight;
                 const xPos = i * (barWidth + barSpacing);
-                const yPos = chartHeight - barHeight;
 
                 const rect = document.createElementNS(svgNS, 'rect');
                 rect.setAttribute('class', 'c-graph__bar');
                 rect.id = `student-bar-${i}`;
                 rect.setAttribute('x', xPos);
-                rect.setAttribute('y', yPos);
                 rect.setAttribute('width', barWidth);
-                rect.setAttribute('height', barHeight);
-                rect.setAttribute('fill', '#6d28d9');
+                rect.setAttribute('fill', '#007FFF'); // Azure Blue
                 rect.setAttribute('rx', '2');
                 if (i === highlightedIndex) {
                     rect.classList.add('highlighted');
                 }
+                
+                rect.setAttribute('y', chartHeight);
+                rect.setAttribute('height', 0);
                 mainGroup.appendChild(rect);
+                
+                setTimeout(() => {
+                    rect.setAttribute('y', chartHeight - barHeight);
+                    rect.setAttribute('height', barHeight);
+                }, 100 + i * 50);
+
 
                 rect.addEventListener('mousemove', (e) => {
                     tooltip.style.opacity = '1';
@@ -545,7 +559,120 @@
         );
     };
 
-    const ResultsManagementPage = ({ setDevPage, usersData }) => {
+    const DonutChart = ({ percentage, size = 200, label }) => {
+        const strokeWidth = 20;
+        const radius = (size / 2) - (strokeWidth / 2);
+        const circumference = 2 * Math.PI * radius;
+        const [offset, setOffset] = useState(circumference);
+        const [displayPercentage, setDisplayPercentage] = useState(0);
+
+        useEffect(() => {
+            const progressOffset = circumference - (percentage / 100) * circumference;
+            setOffset(progressOffset);
+
+            let start = 0;
+            const end = Math.round(percentage);
+            if (end === 0) {
+                 setDisplayPercentage(0);
+                 return;
+            }
+
+            const duration = 1500;
+            const incrementTime = duration / end;
+            
+            const timer = setInterval(() => {
+                start += 1;
+                setDisplayPercentage(start);
+                if (start >= end) clearInterval(timer);
+            }, incrementTime);
+
+            return () => clearInterval(timer);
+        }, [percentage, circumference]);
+
+        return (
+            <div className="flex flex-col items-center justify-center p-4 bg-white dark:bg-slate-700 rounded-xl shadow-lg h-full">
+                <h3 className="text-xl font-bold mb-4 text-slate-900 dark:text-white">{label}</h3>
+                <div className="relative" style={{ width: size, height: size }}>
+                    <svg width={size} height={size} className="transform -rotate-90">
+                        <circle
+                            cx={size / 2}
+                            cy={size / 2}
+                            r={radius}
+                            stroke="#e2e8f0"
+                            strokeWidth={strokeWidth}
+                            fill="transparent"
+                            className="dark:stroke-slate-600"
+                        />
+                        <circle
+                            cx={size / 2}
+                            cy={size / 2}
+                            r={radius}
+                            stroke="#4f46e5"
+                            strokeWidth={strokeWidth}
+                            fill="transparent"
+                            strokeDasharray={circumference}
+                            strokeDashoffset={offset}
+                            strokeLinecap="round"
+                            style={{ transition: 'stroke-dashoffset 1.5s ease-out' }}
+                        />
+                    </svg>
+                    <div className="absolute inset-0 flex items-center justify-center">
+                      <span className="text-4xl font-bold text-slate-900 dark:text-white">
+                          {displayPercentage}%
+                      </span>
+                    </div>
+                </div>
+            </div>
+        );
+    };
+    
+    const DifficultyProgressBar = ({ difficulty, attempted, total }) => {
+        const percentage = total > 0 ? (attempted / total) * 100 : 0;
+        const [displayWidth, setDisplayWidth] = useState(0);
+
+        useEffect(() => {
+            const timer = setTimeout(() => {
+                setDisplayWidth(percentage);
+            }, 100);
+            return () => clearTimeout(timer);
+        }, [percentage]);
+
+        return (
+            <div>
+                <div className="flex justify-between mb-1">
+                    <span className="text-base font-medium text-slate-700 dark:text-slate-300">{difficulty}</span>
+                    <span className="text-sm font-medium text-slate-700 dark:text-slate-300">{attempted} / {total}</span>
+                </div>
+                <div className="w-full bg-gray-200 rounded-full h-4 dark:bg-gray-600">
+                    <div 
+                        className="bg-green-500 h-4 rounded-full" 
+                        style={{ width: `${displayWidth}%`, transition: 'width 1.5s ease-out' }}
+                    ></div>
+                </div>
+            </div>
+        );
+    };
+
+    const TestsByDifficultyChart = ({ data, label }) => {
+        const categories = Object.keys(data);
+        return (
+            <div className="flex flex-col justify-center p-4 bg-white dark:bg-slate-700 rounded-xl shadow-lg h-full">
+                <h3 className="text-xl font-bold mb-4 text-center text-slate-900 dark:text-white">{label}</h3>
+                <div className="w-full space-y-4">
+                    {categories.map(difficulty => (
+                        <DifficultyProgressBar 
+                            key={difficulty}
+                            difficulty={difficulty}
+                            attempted={data[difficulty].attempted}
+                            total={data[difficulty].total}
+                        />
+                    ))}
+                </div>
+            </div>
+        );
+    };
+
+    const ResultsManagementPage = ({ setDevPage, usersData, testsData }) => {
         const studentResults = useMemo(() => {
             return usersData
                 .filter(user => user.role === 'student')
@@ -559,15 +686,71 @@
                 .sort((a, b) => b.score - a.score);
         }, [usersData]);
 
+        const participationData = useMemo(() => {
+            const students = usersData.filter(user => user.role === 'student');
+            const totalStudents = students.length;
+            const activeStudents = students.filter(user => Object.keys(user.scores).length > 0).length;
+            const percentage = totalStudents > 0 ? (activeStudents / totalStudents) * 100 : 0;
+            return { percentage, activeStudents, totalStudents };
+        }, [usersData]);
+        
+        const testsByDifficultyData = useMemo(() => {
+            const stats = {
+                'سهل': { total: 0, attempted: 0 },
+                'متوسط': { total: 0, attempted: 0 },
+                'صعب': { total: 0, attempted: 0 }
+            };
+
+            const allTests = [...(testsData['كمي'] || []), ...(testsData['لفظي'] || [])];
+            if (!allTests.length) return stats;
+
+            const activeStudents = usersData.filter(user => user.role === 'student' && Object.keys(user.scores).length > 0);
+            
+            const attemptedTestIds = new Set();
+            activeStudents.forEach(user => {
+                Object.keys(user.scores).forEach(testId => {
+                    attemptedTestIds.add(testId);
+                });
+            });
+
+            allTests.forEach(test => {
+                const difficulty = test.difficulty || 'متوسط';
+                if (stats[difficulty]) {
+                    stats[difficulty].total += 1;
+                    if (attemptedTestIds.has(test.id)) {
+                        stats[difficulty].attempted += 1;
+                    }
+                }
+            });
+
+            return stats;
+        }, [usersData, testsData]);
+
         return (
-            <div className="bg-white dark:bg-slate-800 p-6 rounded-xl shadow-lg">
-                <div className="flex justify-between items-center mb-6">
+            <div className="bg-transparent p-0">
+                <div className="flex justify-between items-center mb-6 bg-white dark:bg-slate-800 p-6 rounded-xl shadow-lg">
                     <h2 className="text-2xl font-bold">النتائج المتقدمة للمستخدمين</h2>
                     <button onClick={() => setDevPage('dashboard')} className="text-blue-500 hover:underline">
                         &rarr; العودة إلى لوحة التحكم الرئيسية
                     </button>
                 </div>
-                <ResultsChart data={studentResults} />
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 items-start">
+                    <div className="lg:col-span-1 flex flex-col gap-8">
+                         <DonutChart percentage={participationData.percentage} label="نسبة مشاركة الطلاب" />
+                         <div className="text-center -mt-4 text-slate-600 dark:text-slate-400 p-4 bg-white dark:bg-slate-800 rounded-xl shadow-lg">
+                            <p>
+                                <span className="font-bold">{participationData.activeStudents}</span>
+                                {" "}من أصل{" "}
+                                <span className="font-bold">{participationData.totalStudents}</span>
+                                {" "}طلاب شاركوا في الاختبارات.
+                            </p>
+                        </div>
+                        <TestsByDifficultyChart data={testsByDifficultyData} label="الاختبارات المنجزة حسب الصعوبة" />
+                    </div>
+                    <div className="lg:col-span-2">
+                        <ResultsChart data={studentResults} />
+                    </div>
+                </div>
             </div>
         );
     };
@@ -675,6 +858,7 @@
       const [newTestPrerequisite, setNewTestPrerequisite] = useState('');
       const [newTestQuestions, setNewTestQuestions] = useState([]);
       const [newTestCategory, setNewTestCategory] = useState('كمي');
+      const [newTestDifficulty, setNewTestDifficulty] = useState('متوسط');
       const [previewQuiz, setPreviewQuiz] = useState(null);
 
       // State for file upload
@@ -1010,6 +1194,7 @@
           setNewTestDuration('');
           setNewTestMaxAttempts('');
           setNewTestPrerequisite('');
+          setNewTestDifficulty('متوسط');
           setNewTestQuestions([]);
           setShowCreateTestForm(false);
           setEditingTestId(null);
@@ -1024,6 +1209,7 @@
           duration: parseInt(newTestDuration, 10),
           maxAttempts: parseInt(newTestMaxAttempts, 10),
           prerequisitePercentage: parseInt(newTestPrerequisite, 10) || 0,
+          difficulty: newTestDifficulty,
           questions: newTestQuestions
         };
 
@@ -1041,6 +1227,7 @@
         setNewTestDuration(testToEdit.duration.toString());
         setNewTestMaxAttempts(testToEdit.maxAttempts.toString());
         setNewTestPrerequisite(testToEdit.prerequisitePercentage?.toString() || '0');
+        setNewTestDifficulty(testToEdit.difficulty || 'متوسط');
         setNewTestQuestions(JSON.parse(JSON.stringify(testToEdit.questions)));
         setNewTestCategory(category);
         setShowCreateTestForm(true);
@@ -1206,7 +1393,7 @@
         <div className="flex flex-col items-center justify-center min-h-screen animated-gradient text-center p-4 relative" dir="rtl">
           <div className="absolute top-8 left-1/2 -translate-x-1/2 bg-white p-2 rounded-full shadow-lg">
               <img 
-                src="https://fv5-6.files.fm/thumb_show.php?i=jtsxwvdzx7&view&v=1&PHPSESSID=840289eb9c827cf9e763225e5338ec7bcb614132" 
+                src="https://fv5-6.files.fm/thumb_show.php?i=w64km6762j&view&v=1&PHPSESSID=e461ec3f0d0a2a9d0d6628b7d393e3c11f2d88b9" 
                 alt="شعار" 
                 className="h-48 w-48 rounded-full object-contain"
                 onError={(e) => { e.target.onerror = null; e.target.src = "https://placehold.co/192x192/FFFFFF/000000?text=شعار" }}
@@ -1324,6 +1511,8 @@
                           setNewTestMaxAttempts={setNewTestMaxAttempts}
                           newTestPrerequisite={newTestPrerequisite}
                           setNewTestPrerequisite={setNewTestPrerequisite}
+                          newTestDifficulty={newTestDifficulty}
+                          setNewTestDifficulty={setNewTestDifficulty}
                           newTestQuestions={newTestQuestions}
                           handleDragStart={handleDragStart}
                           handleDragEnter={handleDragEnter}
@@ -1355,6 +1544,7 @@
                         {devPage === 'results' && <ResultsManagementPage 
                             setDevPage={setDevPage} 
                             usersData={usersData} 
+                            testsData={testsData}
                         />}
                     </div>
                     <div className="lg:col-span-1 order-1 lg:order-2">
