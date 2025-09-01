@@ -25,6 +25,26 @@
       background-size: 400% 400%;
       animation: gradient-animation 15s ease infinite;
     }
+    @keyframes gradient-animation-developer {
+      0% { background-position: 0% 50%; }
+      50% { background-position: 100% 50%; }
+      100% { background-position: 0% 50%; }
+    }
+    .animated-gradient-developer {
+      background: linear-gradient(-45deg, #001f3f, #0074d9, #ff4136, #85144b);
+      background-size: 400% 400%;
+      animation: gradient-animation-developer 15s ease infinite;
+    }
+    @keyframes gradient-animation-student {
+      0% { background-position: 0% 50%; }
+      50% { background-position: 100% 50%; }
+      100% { background-position: 0% 50%; }
+    }
+    .animated-gradient-student {
+      background: linear-gradient(-45deg, #007bff, #28a745, #ffc107, #17a2b8);
+      background-size: 400% 400%;
+      animation: gradient-animation-student 15s ease infinite;
+    }
     .dragging-over {
         border-top: 2px solid #3b82f6; /* blue-500 */
     }
@@ -1672,12 +1692,18 @@
       );
 
       const renderLoginPage = () => (
-        <div className="flex items-center justify-center min-h-screen bg-slate-100 dark:bg-slate-900" dir="rtl">
+        <div className={`flex items-center justify-center min-h-screen ${
+            loginRole === 'teacher' 
+            ? 'animated-gradient-developer' 
+            : loginRole === 'student' 
+            ? 'animated-gradient-student' 
+            : 'bg-slate-100 dark:bg-slate-900'
+        }`} dir="rtl">
           <div className="absolute top-4 left-4">
               <ThemeToggleButton />
           </div>
           <div className="w-full max-w-md">
-              <div className="bg-white dark:bg-slate-800 p-8 rounded-xl shadow-lg">
+              <div className="bg-white/80 dark:bg-slate-800/80 backdrop-blur-sm p-8 rounded-xl shadow-lg">
                 <h2 className="text-2xl font-bold text-center text-slate-900 dark:text-white mb-6">
                   تسجيل الدخول - {loginRole === 'teacher' ? 'مطور' : 'مستخدم'}
                 </h2>
