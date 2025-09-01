@@ -161,6 +161,85 @@
     // =================================================================
     // =========== START: NEW STANDALONE COMPONENTS ====================
     // =================================================================
+    
+    const AnimatedProgressCircle = ({ percentage, size = 160 }) => {
+        const radius = (size / 2) - 10; // 10 is stroke-width
+        const circumference = 2 * Math.PI * radius;
+        const [offset, setOffset] = useState(circumference);
+        const [displayPercentage, setDisplayPercentage] = useState(0);
+
+        useEffect(() => {
+            const progressOffset = circumference - (percentage / 100) * circumference;
+            const timeoutId = setTimeout(() => {
+                setOffset(progressOffset);
+            }, 200);
+
+            let start = 0;
+            const end = Math.round(percentage);
+            if (end === 0) {
+                setDisplayPercentage(0);
+                return () => clearTimeout(timeoutId);
+            }
+
+            const duration = 1500;
+            const incrementTime = Math.abs(Math.floor(duration / end)) || 1;
+
+            const timer = setInterval(() => {
+                start += 1;
+                setDisplayPercentage(start);
+                if (start >= end) {
+                    clearInterval(timer);
+                    setDisplayPercentage(end); 
+                }
+            }, incrementTime);
+
+            return () => {
+                clearTimeout(timeoutId);
+                clearInterval(timer);
+            };
+        }, [percentage, circumference]);
+
+        return (
+            <div className="relative" style={{ width: size, height: size }}>
+                <svg className="w-full h-full" viewBox={`0 0 ${size} ${size}`}>
+                    <circle
+                        className="text-green-500"
+                        strokeWidth="10"
+                        stroke="currentColor"
+                        fill="transparent"
+                        r={radius}
+                        cx={size/2}
+                        cy={size/2}
+                    />
+                    <circle
+                        className="text-white transform -rotate-90 origin-center"
+                        strokeWidth="10"
+                        strokeLinecap="round"
+                        stroke="currentColor"
+                        fill="transparent"
+                        r={radius}
+                        cx={size/2}
+                        cy={size/2}
+                        style={{
+                            strokeDasharray: `${circumference} ${circumference}`,
+                            strokeDashoffset: offset,
+                            transition: 'stroke-dashoffset 0.8s ease-out'
+                        }}
+                    />
+                </svg>
+                <span className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 text-3xl font-bold">
+                    {displayPercentage}%
+                </span>
+            </div>
+        );
+    };
+
+    const StatCard = ({ title, value, colorClass = "text-green-600" }) => (
+        <div className="bg-white dark:bg-slate-700 p-4 rounded-lg shadow-sm">
+            <h3 className="font-semibold text-gray-600 dark:text-gray-300">{title}</h3>
+            <p className={`text-3xl font-bold ${colorClass} mt-2`}>{value}</p>
+        </div>
+    );
 
     const MainDashboard = ({
       setDevPage,
@@ -205,7 +284,9 @@
       handleAddNewLevel,
       handleMoveTest,
       handleDeleteLevel,
-      handleUpdateLevel
+      handleUpdateLevel,
+      createTestFormRef,
+      saveButtonContainerRef
     }) => {
       const [newLevelName, setNewLevelName] = useState('');
       const [draggedTestId, setDraggedTestId] = useState(null);
@@ -276,7 +357,7 @@
                 </div>
             </div>
 
-            <div className="bg-white dark:bg-slate-800 p-6 rounded-xl shadow-lg">
+            <div ref={createTestFormRef} className="bg-white dark:bg-slate-800 p-6 rounded-xl shadow-lg">
               <h2 className="text-2xl font-bold mb-4">إنشاء اختبار</h2>
               {!showCreateTestForm ? (
                   <div className="flex space-x-4 rtl:space-x-reverse">
@@ -289,7 +370,18 @@
                   </div>
               ) : (
                   <div>
-                      <h3 className="text-xl font-semibold mb-4">{editingTestId ? `تعديل اختبار ${newTestCategory}` : `إضافة اختبار ${newTestCategory} جديد`}</h3>
+                      <div className="flex items-center justify-between mb-4">
+                        <h3 className="text-xl font-semibold">{editingTestId ? `تعديل اختبار ${newTestCategory}` : `إضافة اختبار ${newTestCategory} جديد`}</h3>
+                        <button
+                            onClick={() => saveButtonContainerRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' })}
+                            className="p-2 rounded-full hover:bg-slate-100 dark:hover:bg-slate-700"
+                            title="الانتقال إلى زر الحفظ"
+                        >
+                            <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                            </svg>
+                        </button>
+                      </div>
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
                           <input type="text" placeholder="عنوان الاختبار" value={newTestTitle} onChange={(e) => setNewTestTitle(e.target.value)} className="p-2 border rounded-lg bg-slate-50 dark:bg-slate-700" />
                           <select value={newTestDifficulty} onChange={(e) => setNewTestDifficulty(e.target.value)} className="p-2 border rounded-lg bg-slate-50 dark:bg-slate-700">
@@ -335,7 +427,7 @@
                               <button onClick={() => handleDeleteQuestion(qIndex)} className="text-red-500 hover:text-red-700 text-xs mt-2">حذف السؤال</button>
                           </div>
                       ))}
-                      <div className="flex space-x-4 rtl:space-x-reverse">
+                      <div ref={saveButtonContainerRef} className="flex space-x-4 rtl:space-x-reverse">
                           <button onClick={handleAddQuestion} className="bg-slate-200 dark:bg-slate-600 p-2 rounded-lg">إضافة سؤال</button>
                           <button onClick={handleSaveNewTest} className="bg-green-500 text-white p-2 rounded-lg">{editingTestId ? 'تحديث الاختبار' : 'حفظ الاختبار'}</button>
                           <button onClick={resetCreateTestForm} className="bg-red-500 text-white p-2 rounded-lg">إلغاء</button>
@@ -907,6 +999,9 @@
       const [levels, setLevels] = useState([]);
       const [isDataLoaded, setIsDataLoaded] = useState(false);
       const [openLevel, setOpenLevel] = useState(null);
+      
+      const createTestFormRef = useRef(null);
+      const saveButtonContainerRef = useRef(null);
 
       useEffect(() => {
         if (!db) {
@@ -1365,6 +1460,10 @@
         setNewTestQuestions(JSON.parse(JSON.stringify(testToEdit.questions)));
         setNewTestCategory(category);
         setShowCreateTestForm(true);
+
+        setTimeout(() => {
+            createTestFormRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }, 100);
       };
       
       const handleFileSelect = (e) => {
@@ -1686,6 +1785,8 @@
                           handleMoveTest={handleMoveTest}
                           handleDeleteLevel={handleDeleteLevel}
                           handleUpdateLevel={handleUpdateLevel}
+                          createTestFormRef={createTestFormRef}
+                          saveButtonContainerRef={saveButtonContainerRef}
                         />}
                         {devPage === 'users' && <UserManagementPage 
                            setDevPage={setDevPage}
@@ -1711,14 +1812,18 @@
       
       // Render Student Dashboard
       const renderStudentDashboard = () => {
-        const currentUserData = currentUser;
-        
         if (!isDataLoaded) {
             return <div className="min-h-screen flex items-center justify-center"><p>جاري تحميل البيانات...</p></div>;
         }
+
+        const currentUserData = usersData.find(u => u.id === currentUser.id);
         
         if (!currentUserData || currentUserData.role !== 'student') {
-            return <div className="min-h-screen flex items-center justify-center"><p>خطأ في تحميل بيانات المستخدم. الرجاء محاولة تسجيل الدخول مرة أخرى.</p></div>;
+            return (
+                <div className="min-h-screen flex items-center justify-center">
+                    <p>خطأ في تحميل بيانات المستخدم. الرجاء محاولة تسجيل الدخول مرة أخرى.</p>
+                </div>
+            );
         }
 
         const allowedSections = currentUserData.allowedSections || ['كمي', 'لفظي'];
@@ -1742,79 +1847,114 @@
             });
             return grouped;
         };
-
+        
         const allAttempts = Object.values(currentUserData.scores).flat();
+        const completedTestsCount = Object.keys(currentUserData.scores).length;
+
         const totalScored = allAttempts.reduce((acc, scoreData) => acc + scoreData.score, 0);
         const totalPossible = allAttempts.reduce((acc, scoreData) => acc + scoreData.total, 0);
-        const overallPercentage = totalPossible > 0 ? ((totalScored / totalPossible) * 100).toFixed(2) : 0;
-        
+        const overallPercentage = totalPossible > 0 ? parseFloat(((totalScored / totalPossible) * 100).toFixed(2)) : 0;
+
+        const highestScore = allAttempts.length > 0
+            ? Math.max(...allAttempts.map(attempt => (attempt.total > 0 ? (attempt.score / attempt.total) * 100 : 0)))
+            : 0;
+
+        const totalTimeInSeconds = allAttempts.reduce((acc, attempt) => acc + (attempt.timeTaken || 0), 0);
+        const hours = Math.floor(totalTimeInSeconds / 3600);
+        const minutes = Math.floor((totalTimeInSeconds % 3600) / 60);
+        const totalTimeSpentFormatted = `${hours} س ${minutes} د`;
+
+        const renderCategoryTests = (category) => (
+            <div>
+                <h3 className="text-2xl font-bold mb-4 text-center">{category}</h3>
+                <div className="space-y-4">
+                {levelsForCategory(category).length > 0 ? (
+                    levelsForCategory(category).map(level => {
+                        const testsInLevel = testsByLevel(category)[level.id] || [];
+                        if (testsInLevel.length === 0) return null;
+                        return (
+                            <div key={level.id} className="mb-2">
+                                <button onClick={() => setOpenLevel(openLevel === level.id ? null : level.id)} className="w-full text-right bg-slate-100 dark:bg-slate-700 p-3 rounded-lg font-bold flex justify-between items-center">
+                                    <span>{level.name}</span>
+                                    <span>{openLevel === level.id ? '−' : '+'}</span>
+                                </button>
+                                {openLevel === level.id && (
+                                    <div className="grid grid-cols-1 gap-6 p-4">
+                                        {testsInLevel.map(test => {
+                                            const attemptsLeft = currentUserData.attemptsLeft[test.id] !== undefined ? currentUserData.attemptsLeft[test.id] : test.maxAttempts;
+                                            const prerequisite = test.prerequisitePercentage || 0;
+                                            const isLocked = overallPercentage < prerequisite;
+
+                                            return (
+                                                <div key={test.id} className={`p-4 rounded-lg border ${isLocked ? 'bg-slate-200 dark:bg-slate-700' : 'bg-slate-50 dark:bg-slate-600'} dark:border-slate-500`}>
+                                                    <h3 className="text-lg font-bold">{test.title}</h3>
+                                                    <p>المدة: {test.duration} دقيقة</p>
+                                                    <p>المحاولات المتبقية: {attemptsLeft}</p>
+                                                    {isLocked && <p className="text-sm text-red-500 mt-1">مغلق (يتطلب {prerequisite}% للوصول)</p>}
+                                                    <button 
+                                                        onClick={() => handleStartTest(test.id)}
+                                                        disabled={attemptsLeft <= 0 || isLocked}
+                                                        className="mt-4 w-full bg-blue-500 text-white p-2 rounded-lg disabled:bg-slate-400 disabled:cursor-not-allowed">
+                                                        {isLocked ? 'مغلق' : (attemptsLeft > 0 ? 'ابدأ الاختبار' : 'لا توجد محاولات')}
+                                                    </button>
+                                                </div>
+                                            );
+                                        })}
+                                    </div>
+                                )}
+                            </div>
+                        );
+                    })
+                ) : (
+                    <p className="text-center text-slate-500 dark:text-slate-400">لا توجد اختبارات متاحة في هذا القسم.</p>
+                )}
+                </div>
+            </div>
+        );
+
 
         return (
           <div className="min-h-screen text-slate-900 dark:text-slate-100 p-4 sm:p-8">
             <div className="max-w-7xl mx-auto">
-                <div className="flex justify-between items-center mb-8">
-                  <h1 className="text-3xl font-bold">مرحباً بك، {currentUser.username}</h1>
-                  <div className="flex items-center space-x-4">
+                <div className="flex justify-between items-center mb-8 pb-4 border-b dark:border-slate-700">
+                  <div>
+                    <h1 className="text-2xl md:text-3xl font-bold text-gray-800 dark:text-gray-200">أهلاً بعودتك، {currentUser.username}!</h1>
+                    <p className="text-gray-500 dark:text-gray-400">لدينا ملخص جديد لأدائك.</p>
+                  </div>
+                  <div className="flex items-center space-x-2">
                     <ThemeToggleButton />
                     <button onClick={handleReturnToLanding} className="bg-red-500 hover:bg-red-600 text-white font-bold py-2 px-4 rounded-xl">تسجيل الخروج</button>
                   </div>
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-8">
-                    <div className="bg-white dark:bg-slate-800 p-6 rounded-xl shadow-lg">
-                        <h2 className="text-2xl font-bold mb-2">ملخص الأداء</h2>
-                        <p className="text-lg">النسبة الكلية لجميع الاختبارات: <span className="font-bold text-blue-500">{overallPercentage}%</span></p>
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 mb-8">
+                    <div className="lg:col-span-2 bg-slate-50 dark:bg-slate-800 p-6 rounded-xl">
+                        <h2 className="text-xl font-bold text-gray-700 dark:text-gray-200 mb-6">ملخص الأداء</h2>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                            <StatCard title="الاختبارات المكتملة" value={completedTestsCount} />
+                            <StatCard title="متوسط الدرجات" value={`${overallPercentage.toFixed(0)}%`} />
+                            <StatCard title="أعلى درجة" value={`${highestScore.toFixed(0)}%`} />
+                            <StatCard title="الوقت المستغرق" value={totalTimeSpentFormatted} />
+                        </div>
                     </div>
-                    <div className="bg-white dark:bg-slate-800 p-6 rounded-xl shadow-lg">
-                        <h2 className="text-2xl font-bold mb-2">الاختبارات</h2>
-                        <p className="text-lg">المنجزة: <span className="font-bold text-green-500">{Object.keys(currentUserData.scores).length}</span></p>
-                        <p className="text-lg">المتبقية: <span className="font-bold text-red-500">{allTests.length - Object.keys(currentUserData.scores).length}</span></p>
+
+                    <div className="lg:col-span-1 bg-green-600 text-white p-6 rounded-xl flex flex-col items-center justify-center text-center">
+                        <h2 className="text-xl font-bold mb-4">النسبة الكلية</h2>
+                        <AnimatedProgressCircle percentage={overallPercentage} />
+                        <p className="mt-4 text-green-100">
+                            {overallPercentage >= 85 ? 'أداء ممتاز، استمر!' : 'واصل التقدم، يمكنك فعل ما هو أفضل!'}
+                        </p>
                     </div>
                 </div>
                 
                 <div className="bg-white dark:bg-slate-800 p-6 rounded-xl shadow-lg mb-8">
-                  <h2 className="text-2xl font-bold mb-4">الاختبارات المتاحة</h2>
-                  <div className="space-y-4">
-                    {allowedSections.map(category => (
-                        <div key={category}>
-                            <h3 className="text-xl font-bold mb-2">{category}</h3>
-                            {levelsForCategory(category).map(level => {
-                                const testsInLevel = testsByLevel(category)[level.id] || [];
-                                if(testsInLevel.length === 0) return null;
-                                return (
-                                    <div key={level.id} className="mb-2">
-                                        <button onClick={() => setOpenLevel(openLevel === level.id ? null : level.id)} className="w-full text-right bg-slate-100 dark:bg-slate-700 p-3 rounded-lg font-bold">
-                                            {level.name}
-                                        </button>
-                                        {openLevel === level.id && (
-                                            <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6 p-4">
-                                                {testsInLevel.map(test => {
-                                                    const attemptsLeft = currentUserData.attemptsLeft[test.id] !== undefined ? currentUserData.attemptsLeft[test.id] : test.maxAttempts;
-                                                    const prerequisite = test.prerequisitePercentage || 0;
-                                                    const isLocked = overallPercentage < prerequisite;
+                  <h2 className="text-2xl font-bold mb-4 text-center">الاختبارات المتاحة</h2>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                    {/* Right side in RTL: Quantitative */}
+                    { allowedSections.includes('كمي') && renderCategoryTests('كمي') }
 
-                                                    return (
-                                                        <div key={test.id} className="p-4 bg-slate-50 dark:bg-slate-600 rounded-lg border dark:border-slate-500">
-                                                            <h3 className="text-lg font-bold">{test.title}</h3>
-                                                            <p>المدة: {test.duration} دقيقة</p>
-                                                            <p>المحاولات المتبقية: {attemptsLeft}</p>
-                                                            {isLocked && <p className="text-sm text-red-500 mt-1">مغلق (يتطلب {prerequisite}% للوصول)</p>}
-                                                            <button 
-                                                                onClick={() => handleStartTest(test.id)}
-                                                                disabled={attemptsLeft <= 0 || isLocked}
-                                                                className="mt-4 w-full bg-blue-500 text-white p-2 rounded-lg disabled:bg-slate-400">
-                                                                {isLocked ? 'مغلق' : (attemptsLeft > 0 ? 'ابدأ الاختبار' : 'لا توجد محاولات')}
-                                                            </button>
-                                                        </div>
-                                                    );
-                                                })}
-                                            </div>
-                                        )}
-                                    </div>
-                                )
-                            })}
-                        </div>
-                    ))}
+                    {/* Left side in RTL: Verbal */}
+                    { allowedSections.includes('لفظي') && renderCategoryTests('لفظي') }
                   </div>
                 </div>
             </div>
