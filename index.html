@@ -35,15 +35,11 @@
       background-size: 400% 400%;
       animation: gradient-animation-developer 15s ease infinite;
     }
-    @keyframes gradient-animation-student {
-      0% { background-position: 0% 50%; }
-      50% { background-position: 100% 50%; }
-      100% { background-position: 0% 50%; }
-    }
     .animated-gradient-student {
-      background: linear-gradient(-45deg, #007bff, #28a745, #ffc107, #17a2b8);
-      background-size: 400% 400%;
-      animation: gradient-animation-student 15s ease infinite;
+      background-image: url('https://fv5-5.files.fm/thumb_show.php?i=yh53zuxxxd&view&v=1&PHPSESSID=e461ec3f0d0a2a9d0d6628b7d393e3c11f2d88b9');
+      background-size: cover;
+      background-position: center;
+      background-repeat: no-repeat;
     }
     .dragging-over {
         border-top: 2px solid #3b82f6; /* blue-500 */
@@ -107,6 +103,39 @@
       .table-container::-webkit-scrollbar-track { background: #f1f5f9; border-radius: 1rem; }
       .table-container::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 1rem; }
       .table-container::-webkit-scrollbar-thumb:hover { background: #a8b2c1; }
+      
+      .a4-page {
+        background: white;
+        width: 210mm;
+        min-height: 297mm;
+        padding: 20mm;
+        margin: 1cm auto;
+        border: 1px #D3D3D3 solid;
+        border-radius: 5px;
+        box-shadow: 0 0 5px rgba(0, 0, 0, 0.1);
+      }
+
+      @media print {
+        body * {
+          visibility: hidden;
+        }
+        #paper-preview, #paper-preview * {
+          visibility: visible;
+        }
+        #paper-preview {
+          position: absolute;
+          left: 0;
+          top: 0;
+          width: 100%;
+          margin: 0;
+          border: 0;
+          box-shadow: none;
+          border-radius: 0;
+        }
+        .no-print {
+          display: none;
+        }
+      }
   </style>
   <script>
     tailwind.config = {
@@ -296,6 +325,7 @@
       dragOverTest,
       handleTestSort,
       handlePreviewQuiz,
+      handlePaperPreview,
       handleEditTest,
       handleDeleteTest,
       newTestDifficulty,
@@ -516,10 +546,11 @@
                                         <h4 className="text-md font-bold">{test.title}</h4>
                                         <p className="text-sm">{test.questions.length} أسئلة</p>
                                         <p className="text-xs text-slate-500 dark:text-slate-400">الصعوبة: {test.difficulty || 'متوسط'}</p>
-                                        <div className="mt-2 flex space-x-2 rtl:space-x-reverse">
-                                            <button onClick={() => handlePreviewQuiz(test)} className="flex-1 bg-blue-500 text-white p-1 rounded-md text-sm">معاينة</button>
-                                            <button onClick={() => handleEditTest(test, activeTestTab)} className="flex-1 bg-yellow-500 text-white p-1 rounded-md text-sm">تعديل</button>
-                                            <button onClick={() => handleDeleteTest(test.id)} className="flex-1 bg-red-500 text-white p-1 rounded-md text-sm">حذف</button>
+                                        <div className="mt-2 grid grid-cols-2 gap-2">
+                                            <button onClick={() => handlePreviewQuiz(test)} className="bg-blue-500 text-white p-1 rounded-md text-sm">معاينة</button>
+                                            <button onClick={() => handlePaperPreview(test)} className="bg-green-500 text-white p-1 rounded-md text-sm">المعاينة الورقية</button>
+                                            <button onClick={() => handleEditTest(test, activeTestTab)} className="bg-yellow-500 text-white p-1 rounded-md text-sm">تعديل</button>
+                                            <button onClick={() => handleDeleteTest(test.id)} className="bg-red-500 text-white p-1 rounded-md text-sm">حذف</button>
                                         </div>
                                     </div>
                                 ))}
@@ -538,10 +569,11 @@
                                     <h4 className="text-md font-bold">{test.title}</h4>
                                     <p className="text-sm">{test.questions.length} أسئلة</p>
                                     <p className="text-xs text-slate-500 dark:text-slate-400">الصعوبة: {test.difficulty || 'متوسط'}</p>
-                                    <div className="mt-2 flex space-x-2 rtl:space-x-reverse">
-                                        <button onClick={() => handlePreviewQuiz(test)} className="flex-1 bg-blue-500 text-white p-1 rounded-md text-sm">معاينة</button>
-                                        <button onClick={() => handleEditTest(test, activeTestTab)} className="flex-1 bg-yellow-500 text-white p-1 rounded-md text-sm">تعديل</button>
-                                        <button onClick={() => handleDeleteTest(test.id)} className="flex-1 bg-red-500 text-white p-1 rounded-md text-sm">حذف</button>
+                                     <div className="mt-2 grid grid-cols-2 gap-2">
+                                        <button onClick={() => handlePreviewQuiz(test)} className="bg-blue-500 text-white p-1 rounded-md text-sm">معاينة</button>
+                                        <button onClick={() => handlePaperPreview(test)} className="bg-green-500 text-white p-1 rounded-md text-sm">المعاينة الورقية</button>
+                                        <button onClick={() => handleEditTest(test, activeTestTab)} className="bg-yellow-500 text-white p-1 rounded-md text-sm">تعديل</button>
+                                        <button onClick={() => handleDeleteTest(test.id)} className="bg-red-500 text-white p-1 rounded-md text-sm">حذف</button>
                                     </div>
                                 </div>
                             ))}
@@ -1076,6 +1108,8 @@
       const [quizSubmitted, setQuizSubmitted] = useState(false);
       const [darkMode, setDarkMode] = useState(false);
       const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
+      const [paperPreviewTest, setPaperPreviewTest] = useState(null);
+
 
       // State for manual quiz creation
       const [showCreateTestForm, setShowCreateTestForm] = useState(false);
@@ -1612,6 +1646,11 @@
         setPreviewQuiz(JSON.parse(JSON.stringify(test)));
         setCurrentPage('preview');
       };
+      
+      const handlePaperPreview = (test) => {
+        setPaperPreviewTest(test);
+        setCurrentPage('paperPreview');
+      };
 
       const handleClosePreview = () => {
         setPreviewQuiz(null);
@@ -1686,7 +1725,7 @@
             </button>
           </div>
           <footer className="absolute bottom-4 text-white/70 text-sm">
-            جميع الحقوق محفوظة لدى Bungus ® 2025-2026
+            جميع الحقوق محفوظة لدى أ/محمد مختار عبد الحليم ® 2025-2026
           </footer>
         </div>
       );
@@ -1804,6 +1843,7 @@
                           dragOverTest={dragOverTest}
                           handleTestSort={handleTestSort}
                           handlePreviewQuiz={handlePreviewQuiz}
+                          handlePaperPreview={handlePaperPreview}
                           handleEditTest={handleEditTest}
                           handleDeleteTest={handleDeleteTest}
                           levels={levels}
@@ -2034,6 +2074,56 @@
           </div>
         );
       };
+      
+      const renderPaperPreviewPage = () => {
+        if (!paperPreviewTest) return null;
+
+        return (
+          <div className="bg-slate-200 dark:bg-slate-900 min-h-screen py-10" dir="rtl">
+            <div className="no-print flex justify-center mb-4 space-x-4 rtl:space-x-reverse">
+                 <button onClick={() => window.print()} className="bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded-xl">
+                    طباعة
+                 </button>
+                 <button onClick={() => { setCurrentPage('dashboard'); setPaperPreviewTest(null); }} className="bg-red-500 hover:bg-red-600 text-white font-bold py-2 px-4 rounded-xl">
+                    إغلاق
+                 </button>
+            </div>
+            <div id="paper-preview" className="a4-page text-black">
+                <div className="border-b-2 border-black pb-4 mb-8 text-center">
+                    <h1 className="text-3xl font-bold mb-2">{paperPreviewTest.title}</h1>
+                    <p className="text-lg">المدة: {paperPreviewTest.duration} دقيقة</p>
+                </div>
+                <div className="space-y-8">
+                    {paperPreviewTest.questions.map((question, qIndex) => (
+                        <div key={question.id} className="question-block" style={{breakInside: 'avoid-page'}}>
+                            <div className="flex items-start mb-4">
+                                <span className="font-bold ml-2">{qIndex + 1}.</span>
+                                <div className="flex-1">
+                                    <p className="text-lg font-semibold"><MathComponent text={question.text} /></p>
+                                    {question.imageUrl && <img src={question.imageUrl} alt={`صورة للسؤال`} className="max-w-xs my-2 rounded-lg"/>}
+                                </div>
+                            </div>
+                            <div className="grid grid-cols-2 gap-x-8 gap-y-4 pr-6">
+                                {question.options.map(option => (
+                                    <div key={option.id} className="flex items-center">
+                                        <div className="w-5 h-5 border-2 border-black rounded-full mr-3"></div>
+                                        <div className="flex-1">
+                                            {option.imageUrl ? (
+                                                <img src={option.imageUrl} className="max-w-[100px] max-h-[100px] rounded" />
+                                            ) : (
+                                                <p><MathComponent text={option.text} /></p>
+                                            )}
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    ))}
+                </div>
+            </div>
+          </div>
+        );
+    };
 
       const renderTestPage = () => {
         if (!selectedTest) return null;
@@ -2239,6 +2329,7 @@
           case 'test': return renderTestPage();
           case 'results': return renderResultsPage();
           case 'preview': return renderPreviewPage();
+          case 'paperPreview': return renderPaperPreviewPage();
           default: return renderLandingPage();
         }
       };
