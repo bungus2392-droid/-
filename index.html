@@ -169,8 +169,8 @@
   <!-- Firebase SDK -->
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
-    import { getFirestore, doc, onSnapshot, setDoc, collection, addDoc, updateDoc, deleteDoc } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
-    window.firebase = { initializeApp, getFirestore, doc, onSnapshot, setDoc, collection, addDoc, updateDoc, deleteDoc };
+    import { getFirestore, doc, onSnapshot, setDoc, collection, addDoc, updateDoc, deleteDoc, deleteField } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+    window.firebase = { initializeApp, getFirestore, doc, onSnapshot, setDoc, collection, addDoc, updateDoc, deleteDoc, deleteField };
   </script>
 
   <script type="text/babel">
@@ -292,6 +292,7 @@
     );
 
     const MainDashboard = ({
+      currentUser,
       setDevPage,
       devUsernameToGenerate,
       setDevUsernameToGenerate,
@@ -386,106 +387,110 @@
 
       return (
         <div className="space-y-8">
-            <div className="bg-white dark:bg-slate-800 p-6 rounded-xl shadow-lg">
-                <h2 className="text-2xl font-bold mb-4">إدارة المستخدمين</h2>
-                <div className="flex items-center mb-4 space-x-4 rtl:space-x-reverse">
-                    <input
-                        type="text"
-                        placeholder="اسم مستخدم جديد"
-                        value={devUsernameToGenerate}
-                        onChange={(e) => setDevUsernameToGenerate(e.target.value)}
-                        className="p-2 border rounded-lg flex-grow bg-slate-50 dark:bg-slate-700 border-slate-300 dark:border-slate-600"
-                    />
-                    <button onClick={() => handleGenerateAccessCode(devUsernameToGenerate)} className="bg-green-500 text-white py-2 px-4 rounded-lg">إنشاء رمز دخول</button>
-                </div>
-                <div className="flex flex-col space-y-2 items-start">
-                    <button onClick={() => setDevPage('users')} className="text-blue-500 hover:underline">
-                        الانتقال إلى الإدارة المتقدمة للمستخدمين &larr;
-                    </button>
-                    <button onClick={() => setDevPage('results')} className="text-blue-500 hover:underline">
-                        الانتقال الي النتائج المتقدمة للمستخدمين &larr;
-                    </button>
-                </div>
-            </div>
-
-            <div ref={createTestFormRef} className="bg-white dark:bg-slate-800 p-6 rounded-xl shadow-lg">
-              <h2 className="text-2xl font-bold mb-4">إنشاء اختبار</h2>
-              {!showCreateTestForm ? (
-                  <div className="flex space-x-4 rtl:space-x-reverse">
-                      <button onClick={() => { setShowCreateTestForm(true); setNewTestCategory('كمي'); }} className="bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded-lg">
-                          اضافة اختبار كمي
-                      </button>
-                      <button onClick={() => { setShowCreateTestForm(true); setNewTestCategory('لفظي'); }} className="bg-green-500 hover:bg-green-600 text-white font-bold py-2 px-4 rounded-lg">
-                          اضافة اختبار لفظي
-                      </button>
-                  </div>
-              ) : (
-                  <div>
-                      <div className="flex items-center justify-between mb-4">
-                        <h3 className="text-xl font-semibold">{editingTestId ? `تعديل اختبار ${newTestCategory}` : `إضافة اختبار ${newTestCategory} جديد`}</h3>
-                        <button
-                            onClick={() => saveButtonContainerRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' })}
-                            className="p-2 rounded-full hover:bg-slate-100 dark:hover:bg-slate-700"
-                            title="الانتقال إلى زر الحفظ"
-                        >
-                            <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                            </svg>
+            {currentUser.role !== 'supervisor' && (
+                <div className="bg-white dark:bg-slate-800 p-6 rounded-xl shadow-lg">
+                    <h2 className="text-2xl font-bold mb-4">إدارة المستخدمين</h2>
+                    <div className="flex items-center mb-4 space-x-4 rtl:space-x-reverse">
+                        <input
+                            type="text"
+                            placeholder="اسم مستخدم جديد"
+                            value={devUsernameToGenerate}
+                            onChange={(e) => setDevUsernameToGenerate(e.target.value)}
+                            className="p-2 border rounded-lg flex-grow bg-slate-50 dark:bg-slate-700 border-slate-300 dark:border-slate-600"
+                        />
+                        <button onClick={() => handleGenerateAccessCode(devUsernameToGenerate)} className="bg-green-500 text-white py-2 px-4 rounded-lg">إنشاء رمز دخول</button>
+                    </div>
+                    <div className="flex flex-col space-y-2 items-start">
+                        <button onClick={() => setDevPage('users')} className="text-blue-500 hover:underline">
+                            الانتقال إلى الإدارة المتقدمة للمستخدمين &larr;
                         </button>
+                        <button onClick={() => setDevPage('results')} className="text-blue-500 hover:underline">
+                            الانتقال الي النتائج المتقدمة للمستخدمين &larr;
+                        </button>
+                    </div>
+                </div>
+            )}
+
+            {currentUser.role !== 'supervisor' && (
+                <div ref={createTestFormRef} className="bg-white dark:bg-slate-800 p-6 rounded-xl shadow-lg">
+                  <h2 className="text-2xl font-bold mb-4">إنشاء اختبار</h2>
+                  {!showCreateTestForm ? (
+                      <div className="flex space-x-4 rtl:space-x-reverse">
+                          <button onClick={() => { setShowCreateTestForm(true); setNewTestCategory('كمي'); }} className="bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded-lg">
+                              اضافة اختبار كمي
+                          </button>
+                          <button onClick={() => { setShowCreateTestForm(true); setNewTestCategory('لفظي'); }} className="bg-green-500 hover:bg-green-600 text-white font-bold py-2 px-4 rounded-lg">
+                              اضافة اختبار لفظي
+                          </button>
                       </div>
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-                          <input type="text" placeholder="عنوان الاختبار" value={newTestTitle} onChange={(e) => setNewTestTitle(e.target.value)} className="p-2 border rounded-lg bg-slate-50 dark:bg-slate-700" />
-                          <select value={newTestDifficulty} onChange={(e) => setNewTestDifficulty(e.target.value)} className="p-2 border rounded-lg bg-slate-50 dark:bg-slate-700">
-                                <option value="سهل">سهل</option>
-                                <option value="متوسط">متوسط</option>
-                                <option value="صعب">صعب</option>
-                          </select>
-                          <input type="number" placeholder="المدة (دقائق)" value={newTestDuration} onChange={(e) => setNewTestDuration(e.target.value)} className="p-2 border rounded-lg bg-slate-50 dark:bg-slate-700" />
-                          <input type="number" placeholder="أقصى عدد محاولات" value={newTestMaxAttempts} onChange={(e) => setNewTestMaxAttempts(e.target.value)} className="p-2 border rounded-lg bg-slate-50 dark:bg-slate-700" />
-                          <input type="number" placeholder="النسبة المطلوبة (%)" value={newTestPrerequisite} onChange={(e) => setNewTestPrerequisite(e.target.value)} className="p-2 border rounded-lg bg-slate-50 dark:bg-slate-700" />
-                      </div>
-                      {newTestQuestions.map((q, qIndex) => (
-                          <div 
-                            key={q.id} 
-                            className="bg-slate-50 dark:bg-slate-700 p-4 rounded-lg mb-4 border dark:border-slate-600"
-                          >
-                            <div 
-                                className="cursor-grab"
-                                draggable
-                                onDragStart={(e) => handleDragStart(e, qIndex)}
-                                onDragEnter={(e) => handleDragEnter(e, qIndex)}
+                  ) : (
+                      <div>
+                          <div className="flex items-center justify-between mb-4">
+                            <h3 className="text-xl font-semibold">{editingTestId ? `تعديل اختبار ${newTestCategory}` : `إضافة اختبار ${newTestCategory} جديد`}</h3>
+                            <button
+                                onClick={() => saveButtonContainerRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' })}
+                                className="p-2 rounded-full hover:bg-slate-100 dark:hover:bg-slate-700"
+                                title="الانتقال إلى زر الحفظ"
                             >
-                              <h4 className="font-bold mb-2">السؤال {qIndex + 1}</h4>
-                              <textarea value={q.text} onChange={(e) => handleUpdateQuestion(qIndex, 'text', e.target.value)} placeholder="نص السؤال" className="w-full p-2 border rounded-lg mb-2 bg-white dark:bg-slate-600"></textarea>
-                            </div>
-                              <input
-                                type="text"
-                                placeholder="أدخل رابط صورة للسؤال (اختياري)"
-                                value={q.imageUrl}
-                                onChange={(e) => handleUpdateQuestion(qIndex, 'imageUrl', e.target.value)}
-                                className="w-full p-2 border rounded-lg mb-2 bg-white dark:bg-slate-600"
-                              />
-                              {q.imageUrl && <img src={q.imageUrl} className="w-32 h-32 object-cover rounded-lg my-2 mx-auto" alt="معاينة السؤال"/>}
-                              
-                              {q.options.map((opt, oIndex) => (
-                                  <div key={opt.id} className="flex items-center mb-2 bg-white dark:bg-slate-600 p-2 rounded-lg">
-                                      <input type="radio" name={`correct-answer-${q.id}`} checked={q.correctAnswer === opt.id} onChange={() => handleUpdateCorrectAnswer(qIndex, opt.id)} className="ml-2"/>
-                                      <input type="text" value={opt.text} onChange={(e) => handleUpdateOption(qIndex, oIndex, 'text', e.target.value)} placeholder={`الخيار ${String.fromCharCode(97 + oIndex)}`} className="p-2 border rounded-lg flex-grow bg-white dark:bg-slate-500"/>
-                                      <input type="text" placeholder="رابط صورة للخيار" value={opt.imageUrl} onChange={(e) => handleUpdateOption(qIndex, oIndex, 'imageUrl', e.target.value)} className="p-2 border rounded-lg w-1/3 ml-2 bg-white dark:bg-slate-500"/>
-                                      {opt.imageUrl && <img src={opt.imageUrl} className="w-16 h-16 object-cover rounded-md ml-2" alt="معاينة الخيار"/>}
-                                  </div>
-                              ))}
-                              <button onClick={() => handleDeleteQuestion(qIndex)} className="text-red-500 hover:text-red-700 text-xs mt-2">حذف السؤال</button>
+                                <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                                </svg>
+                            </button>
                           </div>
-                      ))}
-                      <div ref={saveButtonContainerRef} className="flex space-x-4 rtl:space-x-reverse">
-                          <button onClick={handleAddQuestion} className="bg-slate-200 dark:bg-slate-600 p-2 rounded-lg">إضافة سؤال</button>
-                          <button onClick={handleSaveNewTest} className="bg-green-500 text-white p-2 rounded-lg">{editingTestId ? 'تحديث الاختبار' : 'حفظ الاختبار'}</button>
-                          <button onClick={resetCreateTestForm} className="bg-red-500 text-white p-2 rounded-lg">إلغاء</button>
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                              <input type="text" placeholder="عنوان الاختبار" value={newTestTitle} onChange={(e) => setNewTestTitle(e.target.value)} className="p-2 border rounded-lg bg-slate-50 dark:bg-slate-700" />
+                              <select value={newTestDifficulty} onChange={(e) => setNewTestDifficulty(e.target.value)} className="p-2 border rounded-lg bg-slate-50 dark:bg-slate-700">
+                                    <option value="سهل">سهل</option>
+                                    <option value="متوسط">متوسط</option>
+                                    <option value="صعب">صعب</option>
+                              </select>
+                              <input type="number" placeholder="المدة (دقائق)" value={newTestDuration} onChange={(e) => setNewTestDuration(e.target.value)} className="p-2 border rounded-lg bg-slate-50 dark:bg-slate-700" />
+                              <input type="number" placeholder="أقصى عدد محاولات" value={newTestMaxAttempts} onChange={(e) => setNewTestMaxAttempts(e.target.value)} className="p-2 border rounded-lg bg-slate-50 dark:bg-slate-700" />
+                              <input type="number" placeholder="النسبة المطلوبة (%)" value={newTestPrerequisite} onChange={(e) => setNewTestPrerequisite(e.target.value)} className="p-2 border rounded-lg bg-slate-50 dark:bg-slate-700" />
+                          </div>
+                          {newTestQuestions.map((q, qIndex) => (
+                              <div 
+                                key={q.id} 
+                                className="bg-slate-50 dark:bg-slate-700 p-4 rounded-lg mb-4 border dark:border-slate-600"
+                              >
+                                <div 
+                                    className="cursor-grab"
+                                    draggable
+                                    onDragStart={(e) => handleDragStart(e, qIndex)}
+                                    onDragEnter={(e) => handleDragEnter(e, qIndex)}
+                                >
+                                  <h4 className="font-bold mb-2">السؤال {qIndex + 1}</h4>
+                                  <textarea value={q.text} onChange={(e) => handleUpdateQuestion(qIndex, 'text', e.target.value)} placeholder="نص السؤال" className="w-full p-2 border rounded-lg mb-2 bg-white dark:bg-slate-600"></textarea>
+                                </div>
+                                  <input
+                                    type="text"
+                                    placeholder="أدخل رابط صورة للسؤال (اختياري)"
+                                    value={q.imageUrl}
+                                    onChange={(e) => handleUpdateQuestion(qIndex, 'imageUrl', e.target.value)}
+                                    className="w-full p-2 border rounded-lg mb-2 bg-white dark:bg-slate-600"
+                                  />
+                                  {q.imageUrl && <img src={q.imageUrl} className="w-32 h-32 object-cover rounded-lg my-2 mx-auto" alt="معاينة السؤال"/>}
+                                  
+                                  {q.options.map((opt, oIndex) => (
+                                      <div key={opt.id} className="flex items-center mb-2 bg-white dark:bg-slate-600 p-2 rounded-lg">
+                                          <input type="radio" name={`correct-answer-${q.id}`} checked={q.correctAnswer === opt.id} onChange={() => handleUpdateCorrectAnswer(qIndex, opt.id)} className="ml-2"/>
+                                          <input type="text" value={opt.text} onChange={(e) => handleUpdateOption(qIndex, oIndex, 'text', e.target.value)} placeholder={`الخيار ${String.fromCharCode(97 + oIndex)}`} className="p-2 border rounded-lg flex-grow bg-white dark:bg-slate-500"/>
+                                          <input type="text" placeholder="رابط صورة للخيار" value={opt.imageUrl} onChange={(e) => handleUpdateOption(qIndex, oIndex, 'imageUrl', e.target.value)} className="p-2 border rounded-lg w-1/3 ml-2 bg-white dark:bg-slate-500"/>
+                                          {opt.imageUrl && <img src={opt.imageUrl} className="w-16 h-16 object-cover rounded-md ml-2" alt="معاينة الخيار"/>}
+                                      </div>
+                                  ))}
+                                  <button onClick={() => handleDeleteQuestion(qIndex)} className="text-red-500 hover:text-red-700 text-xs mt-2">حذف السؤال</button>
+                              </div>
+                          ))}
+                          <div ref={saveButtonContainerRef} className="flex space-x-4 rtl:space-x-reverse">
+                              <button onClick={handleAddQuestion} className="bg-slate-200 dark:bg-slate-600 p-2 rounded-lg">إضافة سؤال</button>
+                              <button onClick={handleSaveNewTest} className="bg-green-500 text-white p-2 rounded-lg">{editingTestId ? 'تحديث الاختبار' : 'حفظ الاختبار'}</button>
+                              <button onClick={resetCreateTestForm} className="bg-red-500 text-white p-2 rounded-lg">إلغاء</button>
+                          </div>
                       </div>
-                  </div>
-              )}
-            </div>
+                  )}
+                </div>
+            )}
             
             <div className="bg-white dark:bg-slate-800 p-6 rounded-xl shadow-lg">
                <h2 className="text-2xl font-bold mb-4">الاختبارات الحالية</h2>
@@ -500,16 +505,18 @@
                     </nav>
                 </div>
                 
-                 <div className="mb-4 flex space-x-2 rtl:space-x-reverse">
-                    <input 
-                        type="text"
-                        value={newLevelName}
-                        onChange={(e) => setNewLevelName(e.target.value)}
-                        placeholder="اسم المستوى الجديد"
-                        className="p-2 border rounded-lg flex-grow bg-slate-50 dark:bg-slate-700"
-                    />
-                    <button onClick={onAddNewLevel} className="bg-indigo-500 text-white py-2 px-4 rounded-lg">إضافة مستوى</button>
-                </div>
+                 {currentUser.role !== 'supervisor' && (
+                     <div className="mb-4 flex space-x-2 rtl:space-x-reverse">
+                        <input 
+                            type="text"
+                            value={newLevelName}
+                            onChange={(e) => setNewLevelName(e.target.value)}
+                            placeholder="اسم المستوى الجديد"
+                            className="p-2 border rounded-lg flex-grow bg-slate-50 dark:bg-slate-700"
+                        />
+                        <button onClick={onAddNewLevel} className="bg-indigo-500 text-white py-2 px-4 rounded-lg">إضافة مستوى</button>
+                    </div>
+                 )}
 
                 <div className="space-y-4">
                     {levelsForCategory.map(level => (
@@ -517,7 +524,7 @@
                             key={level.id}
                             className="bg-slate-100 dark:bg-slate-700 p-4 rounded-lg"
                             onDragOver={e => e.preventDefault()}
-                            onDrop={() => handleDropOnLevel(level.id)}
+                            onDrop={currentUser.role !== 'supervisor' ? () => handleDropOnLevel(level.id) : null}
                         >
                            <div className="flex justify-between items-center mb-2">
                                 {editingLevel?.id === level.id ? (
@@ -534,24 +541,30 @@
                                 ) : (
                                     <>
                                         <h3 className="font-bold text-lg">{level.name}</h3>
-                                        <div className="flex space-x-2 rtl:space-x-reverse">
-                                            <button onClick={() => setEditingLevel({id: level.id, name: level.name})} className="text-blue-500 hover:text-blue-700 text-xs">تعديل</button>
-                                            <button onClick={() => handleDeleteLevel(level.id)} className="text-red-500 hover:text-red-700 text-xs">حذف</button>
-                                        </div>
+                                        {currentUser.role !== 'supervisor' && (
+                                            <div className="flex space-x-2 rtl:space-x-reverse">
+                                                <button onClick={() => setEditingLevel({id: level.id, name: level.name})} className="text-blue-500 hover:text-blue-700 text-xs">تعديل</button>
+                                                <button onClick={() => handleDeleteLevel(level.id)} className="text-red-500 hover:text-red-700 text-xs">حذف</button>
+                                            </div>
+                                        )}
                                     </>
                                 )}
                             </div>
                              <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
                                 {(testsByLevel[level.id] || []).map(test => (
-                                     <div key={test.id} draggable onDragStart={() => setDraggedTestId(test.id)} className="p-4 bg-white dark:bg-slate-600 rounded-lg border dark:border-slate-500 cursor-move">
+                                     <div key={test.id} draggable={currentUser.role !== 'supervisor'} onDragStart={() => setDraggedTestId(test.id)} className="p-4 bg-white dark:bg-slate-600 rounded-lg border dark:border-slate-500 cursor-move">
                                         <h4 className="text-md font-bold">{test.title}</h4>
                                         <p className="text-sm">{test.questions.length} أسئلة</p>
                                         <p className="text-xs text-slate-500 dark:text-slate-400">الصعوبة: {test.difficulty || 'متوسط'}</p>
                                         <div className="mt-2 grid grid-cols-2 gap-2">
                                             <button onClick={() => handlePreviewQuiz(test)} className="bg-blue-500 text-white p-1 rounded-md text-sm">معاينة</button>
                                             <button onClick={() => handlePaperPreview(test)} className="bg-green-500 text-white p-1 rounded-md text-sm">المعاينة الورقية</button>
-                                            <button onClick={() => handleEditTest(test, activeTestTab)} className="bg-yellow-500 text-white p-1 rounded-md text-sm">تعديل</button>
-                                            <button onClick={() => handleDeleteTest(test.id)} className="bg-red-500 text-white p-1 rounded-md text-sm">حذف</button>
+                                            {currentUser.role !== 'supervisor' && (
+                                                <>
+                                                    <button onClick={() => handleEditTest(test, activeTestTab)} className="bg-yellow-500 text-white p-1 rounded-md text-sm">تعديل</button>
+                                                    <button onClick={() => handleDeleteTest(test.id)} className="bg-red-500 text-white p-1 rounded-md text-sm">حذف</button>
+                                                </>
+                                            )}
                                         </div>
                                     </div>
                                 ))}
@@ -561,20 +574,24 @@
                     <div 
                         className="bg-slate-200 dark:bg-slate-800 p-4 rounded-lg border-2 border-dashed border-slate-400"
                         onDragOver={e => e.preventDefault()}
-                        onDrop={() => handleDropOnLevel(null)}
+                        onDrop={currentUser.role !== 'supervisor' ? () => handleDropOnLevel(null) : null}
                     >
                          <h3 className="font-bold text-lg mb-2 text-slate-500">اختبارات غير مصنفة</h3>
                          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
                             {(testsByLevel['unassigned'] || []).map(test => (
-                                <div key={test.id} draggable onDragStart={() => setDraggedTestId(test.id)} className="p-4 bg-white dark:bg-slate-600 rounded-lg border dark:border-slate-500 cursor-move">
+                                <div key={test.id} draggable={currentUser.role !== 'supervisor'} onDragStart={() => setDraggedTestId(test.id)} className="p-4 bg-white dark:bg-slate-600 rounded-lg border dark:border-slate-500 cursor-move">
                                     <h4 className="text-md font-bold">{test.title}</h4>
                                     <p className="text-sm">{test.questions.length} أسئلة</p>
                                     <p className="text-xs text-slate-500 dark:text-slate-400">الصعوبة: {test.difficulty || 'متوسط'}</p>
                                      <div className="mt-2 grid grid-cols-2 gap-2">
                                         <button onClick={() => handlePreviewQuiz(test)} className="bg-blue-500 text-white p-1 rounded-md text-sm">معاينة</button>
                                         <button onClick={() => handlePaperPreview(test)} className="bg-green-500 text-white p-1 rounded-md text-sm">المعاينة الورقية</button>
-                                        <button onClick={() => handleEditTest(test, activeTestTab)} className="bg-yellow-500 text-white p-1 rounded-md text-sm">تعديل</button>
-                                        <button onClick={() => handleDeleteTest(test.id)} className="bg-red-500 text-white p-1 rounded-md text-sm">حذف</button>
+                                        {currentUser.role !== 'supervisor' && (
+                                            <>
+                                                <button onClick={() => handleEditTest(test, activeTestTab)} className="bg-yellow-500 text-white p-1 rounded-md text-sm">تعديل</button>
+                                                <button onClick={() => handleDeleteTest(test.id)} className="bg-red-500 text-white p-1 rounded-md text-sm">حذف</button>
+                                            </>
+                                        )}
                                     </div>
                                 </div>
                             ))}
@@ -586,7 +603,7 @@
       );
     };
 
-    const UserManagementPage = ({ setDevPage, usersData, handleShowUserScores, handleToggleUserRole, handleDeleteUser, handleSectionPermissionChange }) => {
+    const UserManagementPage = ({ currentUser, setDevPage, usersData, handleShowUserScores, handleToggleUserRole, handleDeleteUser, handleSectionPermissionChange }) => {
         const [userSearchTerm, setUserSearchTerm] = useState('');
         
         const filteredUsers = useMemo(() => usersData
@@ -596,6 +613,8 @@
             .sort((a, b) => {
                 if (a.role === 'teacher' && b.role !== 'teacher') return -1;
                 if (a.role !== 'teacher' && b.role === 'teacher') return 1;
+                if (a.role === 'supervisor' && b.role === 'student') return -1;
+                if (a.role === 'student' && b.role === 'supervisor') return 1;
                 return a.username.localeCompare(b.username);
             }), [usersData, userSearchTerm]);
 
@@ -633,8 +652,12 @@
                                     <td className="px-6 py-4 font-medium text-slate-900 dark:text-white">{user.username}</td>
                                     <td className="px-6 py-4">{user.accessCode}</td>
                                     <td className="px-6 py-4">
-                                        <span className={`px-2 py-1 rounded-full text-xs font-medium ${user.role === 'teacher' ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300' : 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300'}`}>
-                                            {user.role === 'teacher' ? 'مطور' : 'طالب'}
+                                        <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                                            user.role === 'teacher' ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300' 
+                                            : user.role === 'supervisor' ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-300'
+                                            : 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300'}`
+                                        }>
+                                            {user.role === 'teacher' ? 'مطور' : user.role === 'supervisor' ? 'مشرف' : 'طالب'}
                                         </span>
                                     </td>
                                     <td className="px-6 py-4">
@@ -645,6 +668,7 @@
                                                     checked={user.allowedSections?.includes('كمي') ?? true} 
                                                     onChange={() => handleSectionPermissionChange(user.id, 'كمي')}
                                                     className="form-checkbox h-4 w-4 text-blue-600 rounded"
+                                                    disabled={currentUser.role === 'supervisor'}
                                                 />
                                                 <span className="mr-2">كمي</span>
                                             </label>
@@ -654,6 +678,7 @@
                                                     checked={user.allowedSections?.includes('لفظي') ?? true} 
                                                     onChange={() => handleSectionPermissionChange(user.id, 'لفظي')}
                                                     className="form-checkbox h-4 w-4 text-green-600 rounded"
+                                                    disabled={currentUser.role === 'supervisor'}
                                                 />
                                                 <span className="mr-2">لفظي</span>
                                             </label>
@@ -663,12 +688,16 @@
                                         <button onClick={() => handleShowUserScores(user)} title="عرض بيانات المستخدم" className="p-2 text-slate-500 hover:text-blue-600 dark:hover:text-blue-400">
                                             <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path d="M10 12a2 2 0 100-4 2 2 0 000 4z" /><path fillRule="evenodd" d="M.458 10C3.732 4.943 9.522 3 10 3s6.268 1.943 9.542 7c-3.274 5.057-9.064 7-9.542 7S3.732 15.057.458 10zM14 10a4 4 0 11-8 0 4 4 0 018 0z" clipRule="evenodd" /></svg>
                                         </button>
-                                        <button onClick={() => handleToggleUserRole(user.id)} title="اجعله مطور" className="p-2 text-slate-500 hover:text-green-600 dark:hover:text-green-400">
-                                            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clipRule="evenodd" /></svg>
-                                        </button>
-                                        <button onClick={() => handleDeleteUser(user.id)} title="حذف المستخدم" className="p-2 text-slate-500 hover:text-red-600 dark:hover:text-red-400">
-                                            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clipRule="evenodd" /></svg>
-                                        </button>
+                                        {currentUser.role !== 'supervisor' && (
+                                            <>
+                                                <button onClick={() => handleToggleUserRole(user.id)} title="تغيير الصلاحية" className="p-2 text-slate-500 hover:text-green-600 dark:hover:text-green-400">
+                                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clipRule="evenodd" /></svg>
+                                                </button>
+                                                <button onClick={() => handleDeleteUser(user.id)} title="حذف المستخدم" className="p-2 text-slate-500 hover:text-red-600 dark:hover:text-red-400">
+                                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clipRule="evenodd" /></svg>
+                                                </button>
+                                            </>
+                                        )}
                                     </td>
                                 </tr>
                             ))}
@@ -1070,7 +1099,6 @@
                     newTestsData[test.category].push(test);
                 }
             });
-            // Data is not sorted here anymore to allow manual sorting
             setTestsData(newTestsData);
         });
 
@@ -1180,13 +1208,13 @@
             setDevPage('dashboard');
             return;
           }
-          const developer = usersData.find(u => u.role === 'teacher' && u.username === devUsername && u.password === devPassword);
+          const developer = usersData.find(u => (u.role === 'teacher' || u.role === 'supervisor') && u.username === devUsername && u.password === devPassword);
           if (developer) {
             setCurrentUser(developer);
             setCurrentPage('dashboard');
             setDevPage('dashboard');
           } else {
-            setLoginError('اسم المستخدم أو كلمة المرور غير صحيحة للمطور.');
+            setLoginError('اسم المستخدم أو كلمة المرور غير صحيحة.');
           }
         } else if (loginRole === 'student') {
           const user = usersData.find(u => u.username === userUsernameInput && u.accessCode === userAccessCodeInput);
@@ -1217,7 +1245,8 @@
           scores: {},
           attemptsLeft: {},
           role: 'student',
-          allowedSections: ['كمي', 'لفظي']
+          allowedSections: ['كمي', 'لفظي'],
+          incorrectQuestions: [],
         };
         
         await window.firebase.addDoc(window.firebase.collection(db, "users"), newUser);
@@ -1242,18 +1271,30 @@
       
       const handleToggleUserRole = async (userId) => {
         const userToUpdate = usersData.find(u => u.id === userId);
-        const newRole = userToUpdate.role === 'teacher' ? 'student' : 'teacher';
+        let newRole;
+        let rolePromptText = '';
+
+        if (userToUpdate.role === 'student') {
+            newRole = 'supervisor';
+            rolePromptText = 'مشرف';
+        } else if (userToUpdate.role === 'supervisor') {
+            newRole = 'teacher';
+            rolePromptText = 'مطور';
+        } else { // teacher or undefined
+            newRole = 'student';
+        }
+
         let updateData = { role: newRole };
 
-        if (newRole === 'teacher') {
-          const password = prompt(`الرجاء تعيين كلمة مرور للمطور الجديد: ${userToUpdate.username}`);
+        if (newRole === 'teacher' || newRole === 'supervisor') {
+          const password = prompt(`الرجاء تعيين كلمة مرور للمستخدم: ${userToUpdate.username} (${rolePromptText})`);
           if (password && password.length > 0) {
             updateData.password = password;
           } else {
-            return;
+            return; // User cancelled or entered empty password
           }
         } else {
-          updateData.password = null;
+          updateData.password = window.firebase.deleteField();
         }
         await window.firebase.updateDoc(window.firebase.doc(db, "users", userId), updateData);
       };
@@ -1337,6 +1378,28 @@
         setCurrentQuestionIndex(0);
       };
       
+      const handleStartIncorrectTest = () => {
+        const currentUserData = usersData.find(u => u.id === currentUser.id);
+        if (!currentUserData || !currentUserData.incorrectQuestions || currentUserData.incorrectQuestions.length === 0) {
+            return;
+        }
+
+        const incorrectTest = {
+            id: 'incorrect_questions_test',
+            title: 'الأسئلة الصعبة',
+            questions: currentUserData.incorrectQuestions,
+            duration: currentUserData.incorrectQuestions.length, // 1 minute per question
+            isIncorrectTest: true
+        };
+        
+        setSelectedTest(incorrectTest);
+        setAnswers({});
+        setQuizSubmitted(false);
+        setTimer(incorrectTest.duration * 60);
+        setCurrentPage('test');
+        setCurrentQuestionIndex(0);
+    };
+
       const handleNextQuestion = () => {
         if (currentQuestionIndex < selectedTest.questions.length - 1) {
           setCurrentQuestionIndex(prevIndex => prevIndex + 1);
@@ -1356,35 +1419,52 @@
       const handleSubmitTest = async () => {
         if (quizSubmitted) return;
         setQuizSubmitted(true);
-
-        const score = selectedTest.questions.filter(q => answers[q.id] === q.correctAnswer).length;
-        const timeTaken = selectedTest.duration * 60 - timer;
-        
         const userToUpdate = usersData.find(user => user.username === currentUser.username);
         const userRef = window.firebase.doc(db, "users", userToUpdate.id);
 
-        const newAttemptsLeft = (userToUpdate.attemptsLeft[selectedTest.id] !== undefined
-            ? userToUpdate.attemptsLeft[selectedTest.id]
-            : selectedTest.maxAttempts) - 1;
-            
-        const newScoreData = {
-            score: score,
-            total: selectedTest.questions.length,
-            date: new Date().toLocaleDateString('ar-SA'),
-            time: new Date().toLocaleTimeString('ar-SA'),
-            timeTaken: timeTaken
-        };
+        if (selectedTest.isIncorrectTest) {
+            const correctlyAnsweredIds = selectedTest.questions
+                .filter(q => answers[q.id] === q.correctAnswer)
+                .map(q => q.id);
 
-        const updatedScores = { ...userToUpdate.scores };
-        if (!updatedScores[selectedTest.id]) {
-            updatedScores[selectedTest.id] = [];
+            const remainingIncorrect = userToUpdate.incorrectQuestions.filter(q => !correctlyAnsweredIds.includes(q.id));
+            await window.firebase.updateDoc(userRef, {
+                incorrectQuestions: remainingIncorrect
+            });
+        } else {
+            const incorrectQuestionsFromThisTest = selectedTest.questions
+                .filter(q => answers[q.id] !== q.correctAnswer);
+
+            const existingIncorrectIds = new Set((userToUpdate.incorrectQuestions || []).map(q => q.id));
+            const newIncorrectQuestions = incorrectQuestionsFromThisTest.filter(q => !existingIncorrectIds.has(q.id));
+
+            const score = selectedTest.questions.filter(q => answers[q.id] === q.correctAnswer).length;
+            const timeTaken = selectedTest.duration * 60 - timer;
+
+            const newAttemptsLeft = (userToUpdate.attemptsLeft[selectedTest.id] !== undefined
+                ? userToUpdate.attemptsLeft[selectedTest.id]
+                : selectedTest.maxAttempts) - 1;
+
+            const newScoreData = {
+                score: score,
+                total: selectedTest.questions.length,
+                date: new Date().toLocaleDateString('ar-SA'),
+                time: new Date().toLocaleTimeString('ar-SA'),
+                timeTaken: timeTaken
+            };
+
+            const updatedScores = { ...userToUpdate.scores };
+            if (!updatedScores[selectedTest.id]) {
+                updatedScores[selectedTest.id] = [];
+            }
+            updatedScores[selectedTest.id].push(newScoreData);
+
+            await window.firebase.updateDoc(userRef, {
+                scores: updatedScores,
+                [`attemptsLeft.${selectedTest.id}`]: newAttemptsLeft,
+                incorrectQuestions: [...(userToUpdate.incorrectQuestions || []), ...newIncorrectQuestions]
+            });
         }
-        updatedScores[selectedTest.id].push(newScoreData);
-
-        await window.firebase.updateDoc(userRef, {
-            scores: updatedScores,
-            [`attemptsLeft.${selectedTest.id}`]: newAttemptsLeft
-        });
 
         setCurrentPage('results');
       };
@@ -1487,6 +1567,8 @@
       const handleSaveNewTest = async () => {
         if (!newTestTitle || !newTestDuration || !newTestMaxAttempts || newTestQuestions.length === 0) return;
         
+        const originalTest = editingTestId ? [...testsData['كمي'], ...testsData['لفظي']].find(t => t.id === editingTestId) : null;
+
         const newTest = {
           title: newTestTitle,
           category: newTestCategory,
@@ -1494,7 +1576,8 @@
           maxAttempts: parseInt(newTestMaxAttempts, 10),
           prerequisitePercentage: parseInt(newTestPrerequisite, 10) || 0,
           difficulty: newTestDifficulty,
-          questions: newTestQuestions
+          questions: newTestQuestions,
+          levelId: originalTest ? originalTest.levelId : null // Preserve the levelId
         };
 
         if(editingTestId) {
@@ -1726,7 +1809,7 @@
             </button>
           </div>
           <footer className="absolute bottom-4 text-white/70 text-sm">
-            جميع الحقوق محفوظة لدى أ/محمد مختار عبد الحليم ® 2025-2026
+            &copy; 1447 هـ - جميع الحقوق محفوظة لمنصة الاختبارات الإلكترونية.
           </footer>
         </div>
       );
@@ -1808,6 +1891,7 @@
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
                     <div className="lg:col-span-2 order-2 lg:order-1">
                         {devPage === 'dashboard' && <MainDashboard 
+                          currentUser={currentUser}
                           setDevPage={setDevPage}
                           devUsernameToGenerate={devUsernameToGenerate}
                           setDevUsernameToGenerate={setDevUsernameToGenerate}
@@ -1856,6 +1940,7 @@
                           saveButtonContainerRef={saveButtonContainerRef}
                         />}
                         {devPage === 'users' && <UserManagementPage 
+                           currentUser={currentUser}
                            setDevPage={setDevPage}
                            usersData={usersData}
                            handleShowUserScores={handleShowUserScores}
@@ -1930,6 +2015,8 @@
         const hours = Math.floor(totalTimeInSeconds / 3600);
         const minutes = Math.floor((totalTimeInSeconds % 3600) / 60);
         const totalTimeSpentFormatted = `${hours} س ${minutes} د`;
+        
+        const incorrectQuestionsCount = currentUserData.incorrectQuestions?.length || 0;
 
         const renderCategoryTests = (category) => (
             <div>
@@ -2014,16 +2101,29 @@
                     </div>
                 </div>
                 
+                <div className="bg-yellow-100 dark:bg-yellow-900/50 border-r-4 border-yellow-500 p-6 rounded-xl shadow-lg mb-8">
+                   <h2 className="text-2xl font-bold mb-2 text-yellow-800 dark:text-yellow-300">الأسئلة الصعبة</h2>
+                   <p className="text-yellow-700 dark:text-yellow-400 mb-4">
+                       هنا تجد جميع الأسئلة التي أخطأت فيها. قم بحلها لإزالتها من القائمة.
+                   </p>
+                   <p className="font-semibold mb-4">عدد الأسئلة: {incorrectQuestionsCount}</p>
+                   <button 
+                        onClick={handleStartIncorrectTest}
+                        disabled={incorrectQuestionsCount === 0}
+                        className="w-full bg-yellow-500 text-white p-3 rounded-lg disabled:bg-slate-400 disabled:cursor-not-allowed font-bold"
+                    >
+                       {incorrectQuestionsCount > 0 ? 'ابدأ اختبار الأسئلة الصعبة' : 'لا توجد أسئلة صعبة حالياً'}
+                   </button>
+                </div>
+
                 <div className="bg-white dark:bg-slate-800 p-6 rounded-xl shadow-lg mb-8">
                   <h2 className="text-2xl font-bold mb-4 text-center">الاختبارات المتاحة</h2>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                    {/* Right side in RTL: Quantitative */}
                     { allowedSections.includes('كمي') && renderCategoryTests('كمي') }
-
-                    {/* Left side in RTL: Verbal */}
                     { allowedSections.includes('لفظي') && renderCategoryTests('لفظي') }
                   </div>
                 </div>
+
             </div>
           </div>
         );
@@ -2100,23 +2200,26 @@
                             <div className="flex items-start mb-4">
                                 <span className="font-bold ml-2">{qIndex + 1}.</span>
                                 <div className="flex-1">
-                                    <p className="text-lg font-semibold"><MathComponent text={question.text} /></p>
-                                    {question.imageUrl && <img src={question.imageUrl} alt={`صورة للسؤال`} className="max-w-xs my-2 rounded-lg"/>}
+                                    <p className="text-xl font-semibold"><MathComponent text={question.text} /></p>
+                                    {question.imageUrl && <img src={question.imageUrl} alt={`صورة للسؤال`} className="max-w-[220px] my-2 rounded-lg"/>}
                                 </div>
                             </div>
                             <div className="grid grid-cols-2 gap-x-8 gap-y-4 pr-6">
-                                {question.options.map(option => (
-                                    <div key={option.id} className="flex items-center">
-                                        <div className="w-5 h-5 border-2 border-black rounded-full mr-3"></div>
-                                        <div className="flex-1">
-                                            {option.imageUrl ? (
-                                                <img src={option.imageUrl} className="max-w-[100px] max-h-[100px] rounded" />
-                                            ) : (
-                                                <p><MathComponent text={option.text} /></p>
-                                            )}
+                                {question.options.map((option, oIndex) => {
+                                    const optionLabels = ['أ', 'ب', 'ج', 'د'];
+                                    return (
+                                        <div key={option.id} className="flex items-center">
+                                            <span className="font-bold w-8 mr-3">{optionLabels[oIndex]})</span>
+                                            <div className="flex-1">
+                                                {option.imageUrl ? (
+                                                    <img src={option.imageUrl} className="max-w-[80px] max-h-[80px] rounded" />
+                                                ) : (
+                                                    <p className="text-lg"><MathComponent text={option.text} /></p>
+                                                )}
+                                            </div>
                                         </div>
-                                    </div>
-                                ))}
+                                    );
+                                })}
                             </div>
                         </div>
                     ))}
@@ -2187,7 +2290,7 @@
           if (answers[q.id] === q.correctAnswer) score++;
         });
         
-        const percentage = (score / totalQuestions) * 100;
+        const percentage = totalQuestions > 0 ? (score / totalQuestions) * 100 : 0;
         
         const ScoreIndicator = () => {
             if (percentage >= 80) return <span className="text-green-500 text-2xl ml-2">✅</span>;
@@ -2326,7 +2429,9 @@
         switch (currentPage) {
           case 'landing': return renderLandingPage();
           case 'login': return renderLoginPage();
-          case 'dashboard': return currentUser?.role?.includes('teacher') || currentUser?.role === 'superadmin' ? renderTeacherDashboard() : renderStudentDashboard();
+          case 'dashboard': 
+            const isPrivilegedUser = currentUser?.role === 'teacher' || currentUser?.role === 'supervisor' || currentUser?.role === 'superadmin';
+            return isPrivilegedUser ? renderTeacherDashboard() : renderStudentDashboard();
           case 'test': return renderTestPage();
           case 'results': return renderResultsPage();
           case 'preview': return renderPreviewPage();
