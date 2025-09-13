@@ -225,6 +225,26 @@
     // =========== START: NEW STANDALONE COMPONENTS ====================
     // =================================================================
     
+    const PaperPreviewAllModal = ({ onClose, onPreview }) => {
+        return (
+            <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center p-4 z-50" onClick={onClose}>
+                <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-2xl p-8 max-w-sm w-full text-center" onClick={e => e.stopPropagation()}>
+                    <h2 className="text-2xl font-bold mb-4">المعاينة الورقية للكل</h2>
+                    <p className="text-slate-600 dark:text-slate-300 mb-6">اختر كيف تريد طباعة جميع الاختبارات في القسم المحدد.</p>
+                    <div className="space-y-4">
+                        <button onClick={() => onPreview(true)} className="w-full bg-green-500 hover:bg-green-600 text-white font-bold py-3 px-4 rounded-lg">
+                           مع نموذج إجابة
+                        </button>
+                        <button onClick={() => onPreview(false)} className="w-full bg-blue-500 hover:bg-blue-600 text-white font-bold py-3 px-4 rounded-lg">
+                           بدون نموذج إجابة
+                        </button>
+                    </div>
+                     <button onClick={onClose} className="mt-6 text-sm text-slate-500 hover:underline">إلغاء</button>
+                </div>
+            </div>
+        );
+    };
+
     const AnimatedProgressCircle = ({ percentage, size = 160 }) => {
         const radius = (size / 2) - 10; // 10 is stroke-width
         const circumference = 2 * Math.PI * radius;
@@ -464,7 +484,8 @@
       createTestFormRef,
       saveButtonContainerRef,
       onTriggerImport, 
-      onShowExportModal
+      onShowExportModal,
+      onShowPaperPreviewAllModal
     }) => {
       const [newLevelName, setNewLevelName] = useState('');
       const [draggedTestId, setDraggedTestId] = useState(null);
@@ -625,7 +646,15 @@
             )}
             
             <div className="bg-white dark:bg-slate-800 p-6 rounded-xl shadow-lg">
-               <h2 className="text-2xl font-bold mb-4">الاختبارات الحالية</h2>
+               <div className="flex justify-between items-center mb-4">
+                  <h2 className="text-2xl font-bold">الاختبارات الحالية</h2>
+                   {currentUser.role !== 'supervisor' && (
+                       <button onClick={onShowPaperPreviewAllModal} className="bg-cyan-500 hover:bg-cyan-600 text-white font-bold py-2 px-4 rounded-lg">
+                           معاينة ورقية للكل
+                       </button>
+                   )}
+                </div>
+
                 <div className="border-b border-slate-200 dark:border-slate-700 mb-4">
                     <nav className="-mb-px flex space-x-8 rtl:space-x-reverse" aria-label="Tabs">
                         <button onClick={() => setActiveTestTab('كمي')} className={`${activeTestTab === 'كمي' ? 'border-blue-500 text-blue-600' : 'border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300 dark:text-slate-400 dark:hover:text-slate-300'} whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm`}>
@@ -740,7 +769,7 @@
         handleToggleUserRole, handleDeleteUser, handleSectionPermissionChange, 
         handleDeleteSelectedUsers, handleResetAttemptsForSelectedUsers,
         blacklist, handleAddToBlacklist, handleRemoveFromBlacklist,
-        handleExportAllUsers, handleTriggerBlacklistImport
+        handleExportAllUsers, handleTriggerBlacklistImport, handleExportSelectedUsers
     }) => {
         const [userSearchTerm, setUserSearchTerm] = useState('');
         const [selectedUsers, setSelectedUsers] = useState([]);
@@ -800,20 +829,25 @@
                             &rarr; العودة إلى لوحة التحكم الرئيسية
                         </button>
                     </div>
+                    
                     {currentUser.role !== 'supervisor' && (
-                        <div className="flex flex-wrap gap-4 mb-4">
-                            <button onClick={handleExportAllUsers} className="bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded-lg">تصدير جميع المستخدمين</button>
-                            <button onClick={handleTriggerBlacklistImport} className="bg-orange-500 hover:bg-orange-600 text-white font-bold py-2 px-4 rounded-lg">استيراد إلى القائمة السوداء</button>
-                        </div>
-                    )}
-
-                    {selectedUsers.length > 0 && currentUser.role !== 'supervisor' && (
-                        <div className="bg-blue-100 dark:bg-blue-900/50 border border-blue-300 dark:border-blue-700 rounded-lg p-3 mb-4 flex items-center justify-between">
-                            <span className="font-bold">{selectedUsers.length} مستخدم(ين) محدد(ين)</span>
-                            <div className="flex space-x-2 rtl:space-x-reverse">
-                                <button onClick={onResetSelected} className="bg-purple-500 hover:bg-purple-600 text-white font-bold py-1 px-3 rounded-lg text-sm">تجديد المحاولات</button>
-                                <button onClick={onDeleteSelected} className="bg-red-500 hover:bg-red-600 text-white font-bold py-1 px-3 rounded-lg text-sm">حذف</button>
-                            </div>
+                        <div className="flex flex-wrap items-center gap-4 mb-4">
+                            {selectedUsers.length === 0 ? (
+                                <>
+                                    <button onClick={handleExportAllUsers} className="bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded-lg">تصدير جميع المستخدمين</button>
+                                    <button onClick={() => alert('ميزة استيراد المستخدمين قيد التطوير.')} className="bg-green-500 hover:bg-green-600 text-white font-bold py-2 px-4 rounded-lg">استيراد مستخدمين</button>
+                                    <button onClick={handleTriggerBlacklistImport} className="bg-orange-500 hover:bg-orange-600 text-white font-bold py-2 px-4 rounded-lg">استيراد إلى القائمة السوداء</button>
+                                </>
+                            ) : (
+                                <div className="bg-blue-100 dark:bg-blue-900/50 border border-blue-300 dark:border-blue-700 rounded-lg p-3 w-full flex items-center justify-between">
+                                    <span className="font-bold">{selectedUsers.length} مستخدم(ين) محدد(ين)</span>
+                                    <div className="flex space-x-2 rtl:space-x-reverse">
+                                        <button onClick={() => handleExportSelectedUsers(selectedUsers)} className="bg-teal-500 hover:bg-teal-600 text-white font-bold py-1 px-3 rounded-lg text-sm">تصدير المحدد</button>
+                                        <button onClick={onResetSelected} className="bg-purple-500 hover:bg-purple-600 text-white font-bold py-1 px-3 rounded-lg text-sm">تجديد المحاولات</button>
+                                        <button onClick={onDeleteSelected} className="bg-red-500 hover:bg-red-600 text-white font-bold py-1 px-3 rounded-lg text-sm">حذف</button>
+                                    </div>
+                                </div>
+                            )}
                         </div>
                     )}
                     
@@ -1558,6 +1592,9 @@
       const [paperPreviewTest, setPaperPreviewTest] = useState(null);
       const [showInfoModal, setShowInfoModal] = useState(false);
 
+      // --- NEW: State for Paper Preview All ---
+      const [showPaperPreviewAllModal, setShowPaperPreviewAllModal] = useState(false);
+      const [paperPreviewAllConfig, setPaperPreviewAllConfig] = useState(null);
 
       // State for manual quiz creation
       const [showCreateTestForm, setShowCreateTestForm] = useState(false);
@@ -2154,6 +2191,29 @@
         document.body.removeChild(a);
         URL.revokeObjectURL(url);
     };
+    
+    // --- NEW: Handle exporting only selected users ---
+    const handleExportSelectedUsers = (userIds) => {
+        const usersToExport = usersData
+            .filter(user => userIds.includes(user.id))
+            .map(({ id, password, ...rest }) => rest);
+        
+        if(usersToExport.length === 0) {
+            alert('لم يتم تحديد أي مستخدمين للتصدير.');
+            return;
+        }
+
+        const jsonString = JSON.stringify(usersToExport, null, 2);
+        const blob = new Blob([jsonString], { type: 'application/json;charset=utf-8' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'selected_users.json';
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+    };
 
     const handleTriggerBlacklistImport = () => {
         blacklistImportFileRef.current.click();
@@ -2193,6 +2253,17 @@
         await window.firebase.setDoc(window.firebase.doc(db, "config", "blacklist"), { usernames: newBlacklist });
     };
 
+      // --- NEW: Handle Paper Preview for All Tests ---
+      const handlePaperPreviewAll = (withAnswers) => {
+          setShowPaperPreviewAllModal(false);
+          const testsToPreview = testsData[activeTestTab] || [];
+          if(testsToPreview.length === 0) {
+              alert(`لا توجد اختبارات في قسم "${activeTestTab}" للمعاينة.`);
+              return;
+          }
+          setPaperPreviewAllConfig({ tests: testsToPreview, withAnswers: withAnswers, category: activeTestTab });
+          setCurrentPage('paperPreviewAll');
+      };
 
       const handlePreviewQuiz = (test) => {
         setPreviewQuiz(JSON.parse(JSON.stringify(test)));
@@ -2384,6 +2455,7 @@
                           saveButtonContainerRef={saveButtonContainerRef}
                           onTriggerImport={handleTriggerImport}
                           onShowExportModal={() => setShowExportModal(true)}
+                          onShowPaperPreviewAllModal={() => setShowPaperPreviewAllModal(true)}
                         />}
                         {devPage === 'users' && <UserManagementPage 
                            currentUser={currentUser}
@@ -2399,6 +2471,7 @@
                            handleAddToBlacklist={handleAddToBlacklist}
                            handleRemoveFromBlacklist={handleRemoveFromBlacklist}
                            handleExportAllUsers={handleExportAllUsers}
+                           handleExportSelectedUsers={handleExportSelectedUsers}
                            handleTriggerBlacklistImport={handleTriggerBlacklistImport}
                         />}
                         {devPage === 'results' && <ResultsManagementPage 
@@ -2680,6 +2753,82 @@
           </div>
         );
     };
+    
+    // --- NEW: Render page for all tests paper preview ---
+    const renderPaperPreviewAllPage = () => {
+        if (!paperPreviewAllConfig) return null;
+        const { tests, withAnswers, category } = paperPreviewAllConfig;
+
+        return (
+          <div className="bg-slate-200 dark:bg-slate-900 min-h-screen py-10" dir="rtl">
+            <div className="no-print flex justify-center mb-4 space-x-4 rtl:space-x-reverse">
+                 <button onClick={() => window.print()} className="bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded-xl">
+                    طباعة
+                 </button>
+                 <button onClick={() => { setCurrentPage('dashboard'); setPaperPreviewAllConfig(null); }} className="bg-red-500 hover:bg-red-600 text-white font-bold py-2 px-4 rounded-xl">
+                    إغلاق
+                 </button>
+            </div>
+            <div id="paper-preview" className="a4-page text-black">
+                <div className="text-center border-b-4 border-black pb-4 mb-8">
+                    <h1 className="text-4xl font-bold mb-2">جميع اختبارات قسم {category}</h1>
+                    <p className="text-lg">{withAnswers ? 'مع نموذج الإجابة' : 'بدون نموذج إجابة'}</p>
+                </div>
+                <div className="tests-container space-y-12">
+                    {tests.map((test, testIndex) => (
+                        <div key={test.id} className="test-block" style={{breakInside: 'avoid-page', pageBreakAfter: 'auto'}}>
+                            <h2 className="text-2xl font-bold mb-4 border-b-2 border-gray-400 pb-2">{testIndex + 1} - {test.title}</h2>
+                            <div className="space-y-8">
+                                {test.questions.map((question, qIndex) => (
+                                    <div key={question.id} className="question-block" style={{breakInside: 'avoid'}}>
+                                        <div className="flex items-start mb-4">
+                                            <span className="font-bold ml-2">{qIndex + 1}.</span>
+                                            <p className="text-xl font-semibold flex-1"><MathComponent text={question.text} /></p>
+                                        </div>
+                                        <div className="grid grid-cols-2 gap-x-8 gap-y-4 pr-6">
+                                            {question.options.map((option, oIndex) => {
+                                                const optionLabels = ['أ', 'ب', 'ج', 'د'];
+                                                return (
+                                                    <div key={option.id} className="flex items-center">
+                                                        <span className="font-bold w-8 mr-3">{optionLabels[oIndex]})</span>
+                                                        <p className="text-lg"><MathComponent text={option.text} /></p>
+                                                    </div>
+                                                );
+                                            })}
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    ))}
+                </div>
+
+                {withAnswers && (
+                    <div className="answer-key" style={{pageBreakBefore: 'always'}}>
+                         <h1 className="text-3xl font-bold mb-8 text-center border-b-2 border-black pb-4">نموذج الإجابة</h1>
+                         {tests.map((test, testIndex) => (
+                             <div key={`ans-${test.id}`} className="mb-8" style={{breakInside: 'avoid'}}>
+                                 <h2 className="text-2xl font-semibold mb-4">{testIndex + 1} - {test.title}</h2>
+                                 <div className="grid grid-cols-5 gap-4 text-center">
+                                     {test.questions.map((q, qIndex) => {
+                                         const optionLabels = ['أ', 'ب', 'ج', 'د'];
+                                         const correctOptionIndex = q.options.findIndex(opt => opt.id === q.correctAnswer);
+                                         return (
+                                            <div key={`ans-item-${q.id}`} className="p-2 border rounded">
+                                               <span className="font-bold">{qIndex + 1}:</span> {optionLabels[correctOptionIndex] || 'N/A'}
+                                            </div>
+                                         );
+                                     })}
+                                 </div>
+                             </div>
+                         ))}
+                    </div>
+                )}
+
+            </div>
+          </div>
+        );
+    };
 
       const renderTestPage = () => {
         if (!selectedTest) return null;
@@ -2881,6 +3030,7 @@
           case 'results': return renderResultsPage();
           case 'preview': return renderPreviewPage();
           case 'paperPreview': return renderPaperPreviewPage();
+          case 'paperPreviewAll': return renderPaperPreviewAllPage();
           default: return renderLandingPage();
         }
       };
@@ -2905,6 +3055,7 @@
           />
           {renderCurrentPage()}
           {showInfoModal && <SiteInfoModal onClose={() => setShowInfoModal(false)} />}
+          {showPaperPreviewAllModal && <PaperPreviewAllModal onClose={() => setShowPaperPreviewAllModal(false)} onPreview={handlePaperPreviewAll} />}
           {showUserScores && <UserScoresModal user={userScoresToShow} onClose={handleCloseUserScores} onResetAttempt={handleResetSingleTestAttempts} allTests={allTests} />}
           {showExportModal && <ExportModal tests={allTests} onClose={() => setShowExportModal(false)} onExport={handleExportTest} />}
         </div>
@@ -2916,4 +3067,3 @@
   </script>
 </body>
 </html>
-
