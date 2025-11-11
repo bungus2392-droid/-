@@ -252,6 +252,163 @@
     // =========== START: NEW STANDALONE COMPONENTS ====================
     // =================================================================
     
+    // --- NEW: Section Builder Component ---
+    const SectionBuilder = ({ section, sectionIndex, onUpdateSection, onDeleteSection, onAddQuestion, onUpdateQuestion, onUpdateOption, onUpdateCorrectAnswer, onDeleteQuestion, onDragStart, onDragEnter }) => {
+        
+        // This function helps determine the global question index for display purposes
+        const getGlobalQuestionIndex = (qIndex) => {
+             // In App.js, we will calculate the running total of questions before this section
+             // For now, we use a simple placeholder
+             return qIndex + 1;
+        };
+
+        const handleQuestionDragStart = (e, qIndex) => {
+            // We need to pass the section index and local question index
+            e.dataTransfer.setData('sectionIndex', sectionIndex);
+            e.dataTransfer.setData('qIndex', qIndex);
+            e.dataTransfer.setData('questionId', section.questions[qIndex].id); // For reference
+        };
+        
+        const handleQuestionDragEnter = (e, targetQIndex) => {
+            e.preventDefault();
+            
+            const sourceSectionIndex = parseInt(e.dataTransfer.getData('sectionIndex'));
+            const sourceQIndex = parseInt(e.dataTransfer.getData('qIndex'));
+            
+            // Only handle drag within the same section for simplicity of visual feedback
+            if (sourceSectionIndex === sectionIndex) {
+                 if (sourceQIndex === targetQIndex) return;
+
+                 const list = [...section.questions];
+                 const dragItemContent = list[sourceQIndex];
+                 list.splice(sourceQIndex, 1);
+                 list.splice(targetQIndex, 0, dragItemContent);
+                 
+                 onUpdateSection(sectionIndex, 'questions', list);
+                 // Update drag state to reflect the new position
+                 e.dataTransfer.setData('qIndex', targetQIndex);
+            }
+        };
+
+        return (
+            <div className="bg-white dark:bg-slate-700 p-6 rounded-xl shadow-inner mb-6 border-4 border-dashed border-indigo-300 dark:border-indigo-600">
+                <div className="flex justify-between items-start mb-4">
+                    <h3 className="text-xl font-bold text-indigo-600 dark:text-indigo-400">القسم {sectionIndex + 1}:</h3>
+                    <button onClick={() => onDeleteSection(sectionIndex)} className="text-red-500 hover:text-red-700 text-sm p-1 rounded-full bg-red-100 dark:bg-red-900/50">
+                        حذف القسم
+                    </button>
+                </div>
+                
+                {/* Section Controls */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+                     <input
+                        type="text"
+                        placeholder="عنوان القسم (مثال: مسائل جبرية)"
+                        value={section.title}
+                        onChange={(e) => onUpdateSection(sectionIndex, 'title', e.target.value)}
+                        className="p-2 border rounded-lg bg-slate-50 dark:bg-slate-600"
+                    />
+                     <select 
+                         value={section.difficulty} 
+                         onChange={(e) => onUpdateSection(sectionIndex, 'difficulty', e.target.value)}
+                         className="p-2 border rounded-lg bg-slate-50 dark:bg-slate-600"
+                    >
+                         <option value="متوسط">صعوبة القسم: متوسط</option>
+                         <option value="سهل">صعوبة القسم: سهل</option>
+                         <option value="صعب">صعوبة القسم: صعب</option>
+                    </select>
+                </div>
+
+                <div className="space-y-4">
+                    {section.questions.map((q, qIndex) => (
+                        <div 
+                            key={q.id} 
+                            className="bg-slate-50 dark:bg-slate-800 p-4 rounded-lg border dark:border-slate-600 shadow-md transition-shadow duration-200"
+                            draggable
+                            onDragStart={(e) => handleQuestionDragStart(e, qIndex)}
+                            onDragOver={(e) => { e.preventDefault(); e.currentTarget.classList.add('dragging-over'); }}
+                            onDragLeave={(e) => { e.currentTarget.classList.remove('dragging-over'); }}
+                            onDrop={(e) => { 
+                                e.currentTarget.classList.remove('dragging-over');
+                                handleQuestionDragEnter(e, qIndex);
+                            }}
+                            // The real drop target should be an invisible line/area between questions, 
+                            // but for simplicity, we use the question block itself.
+                            style={{ cursor: 'grab' }}
+                        >
+                            <div className="flex justify-between items-center mb-2">
+                                <h4 className="font-bold">السؤال في القسم {qIndex + 1}</h4>
+                                <div className="flex items-center space-x-4 rtl:space-x-reverse">
+                                    {/* NEW: Difficulty Toggle for Question */}
+                                    <label className="flex items-center text-sm font-medium text-red-600 dark:text-red-400">
+                                        <input
+                                            type="checkbox"
+                                            checked={q.isDifficult || false}
+                                            onChange={(e) => onUpdateQuestion(sectionIndex, qIndex, 'isDifficult', e.target.checked)}
+                                            className="form-checkbox h-4 w-4 text-red-600 rounded mr-2 bg-red-100 dark:bg-red-800 border-red-500"
+                                        />
+                                        سؤال صعب
+                                    </label>
+                                    <button onClick={() => onDeleteQuestion(sectionIndex, qIndex)} className="text-red-500 hover:text-red-700 text-xs">حذف السؤال</button>
+                                </div>
+                            </div>
+                            
+                            {/* Question Textarea */}
+                            <textarea 
+                                value={q.text} 
+                                onChange={(e) => onUpdateQuestion(sectionIndex, qIndex, 'text', e.target.value)} 
+                                placeholder="نص السؤال (يمكن استخدام LaTeX مثل $x^2$)" 
+                                className="w-full p-2 border rounded-lg mb-2 bg-white dark:bg-slate-600"
+                            ></textarea>
+                            
+                            {/* Image URL Input */}
+                            <input
+                                type="text"
+                                placeholder="أدخل رابط صورة للسؤال (اختياري)"
+                                value={q.imageUrl}
+                                onChange={(e) => onUpdateQuestion(sectionIndex, qIndex, 'imageUrl', e.target.value)}
+                                className="w-full p-2 border rounded-lg mb-2 bg-white dark:bg-slate-600"
+                            />
+                            {q.imageUrl && <img src={q.imageUrl} onError={(e) => { e.target.onerror = null; e.target.src = "https://placehold.co/128x128/FF0000/FFFFFF?text=خطأ+في+الصورة" }} className="w-32 h-32 object-contain rounded-lg my-2 mx-auto border" alt="معاينة السؤال"/>}
+                                  
+                            {/* Options */}
+                            {q.options.map((opt, oIndex) => (
+                                <div key={opt.id} className="flex items-center mb-2 bg-white dark:bg-slate-600 p-2 rounded-lg border border-slate-200 dark:border-slate-700">
+                                    <input 
+                                        type="radio" 
+                                        name={`correct-answer-${q.id}`} 
+                                        checked={q.correctAnswer === opt.id} 
+                                        onChange={() => onUpdateCorrectAnswer(sectionIndex, qIndex, opt.id)} 
+                                        className="ml-3 h-4 w-4 text-green-600 focus:ring-green-500 border-gray-300"
+                                    />
+                                    <input 
+                                        type="text" 
+                                        value={opt.text} 
+                                        onChange={(e) => onUpdateOption(sectionIndex, qIndex, oIndex, 'text', e.target.value)} 
+                                        placeholder={`الخيار ${String.fromCharCode(97 + oIndex)}`} 
+                                        className="p-2 border rounded-lg flex-grow bg-white dark:bg-slate-500"
+                                    />
+                                    <input 
+                                        type="text" 
+                                        placeholder="رابط صورة للخيار" 
+                                        value={opt.imageUrl} 
+                                        onChange={(e) => onUpdateOption(sectionIndex, qIndex, oIndex, 'imageUrl', e.target.value)} 
+                                        className="p-2 border rounded-lg w-1/3 ml-2 bg-white dark:bg-slate-500"
+                                    />
+                                    {opt.imageUrl && <img src={opt.imageUrl} onError={(e) => { e.target.onerror = null; e.target.src = "https://placehold.co/64x64/FF0000/FFFFFF?text=خطأ" }} className="w-16 h-16 object-contain rounded-md ml-2 border" alt="معاينة الخيار"/>}
+                                </div>
+                            ))}
+                        </div>
+                    ))}
+                </div>
+                
+                <button onClick={() => onAddQuestion(sectionIndex)} className="mt-4 bg-indigo-500 text-white p-2 rounded-lg hover:bg-indigo-600 transition duration-200 w-full">
+                    إضافة سؤال إلى القسم {sectionIndex + 1}
+                </button>
+            </div>
+        );
+    };
+
     const PaperPreviewAllModal = ({ onClose, onPreview }) => {
         return (
             <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center p-4 z-50" onClick={onClose}>
@@ -481,14 +638,18 @@
       setNewTestMaxAttempts,
       newTestPrerequisite,
       setNewTestPrerequisite,
-      newTestQuestions,
-      handleDragStart,
-      handleDragEnter,
-      handleUpdateQuestion,
-      handleUpdateOption,
-      handleUpdateCorrectAnswer,
-      handleDeleteQuestion,
-      handleAddQuestion,
+      // Updated props for Section logic:
+      newTestSections, // Now managing sections instead of flat questions array
+      setNewTestSections, // Setter for sections
+      handleUpdateSection, // New handler for section properties
+      handleDeleteSection, // New handler for section deletion
+      handleAddSection, // New handler for adding a section
+      handleAddQuestion, // Modified handler for adding a question to a section
+      handleUpdateQuestion, // Modified handler for updating a question in a section
+      handleUpdateOption, // Modified handler for updating an option in a section
+      handleUpdateCorrectAnswer, // Modified handler for updating correct answer in a section
+      handleDeleteQuestion, // Modified handler for deleting a question from a section
+      // End of Section updates
       handleSaveNewTest,
       resetCreateTestForm,
       testsData,
@@ -512,7 +673,10 @@
       saveButtonContainerRef,
       onTriggerImport, 
       onShowExportModal,
-      onShowPaperPreviewAllModal
+      onShowPaperPreviewAllModal,
+      // NEW: Question Order
+      newTestQuestionOrder,
+      setNewTestQuestionOrder
     }) => {
       const [newLevelName, setNewLevelName] = useState('');
       const [draggedTestId, setDraggedTestId] = useState(null);
@@ -558,6 +722,9 @@
               setDraggedTestId(null);
           }
       };
+      
+      const totalQuestionsCount = newTestSections.reduce((acc, section) => acc + (section.questions?.length || 0), 0);
+
 
       return (
         <div className="space-y-8">
@@ -621,53 +788,53 @@
                                 </svg>
                             </button>
                           </div>
-                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-                              <input type="text" placeholder="عنوان الاختبار" value={newTestTitle} onChange={(e) => setNewTestTitle(e.target.value)} className="p-2 border rounded-lg bg-slate-50 dark:bg-slate-700" />
-                              <select value={newTestDifficulty} onChange={(e) => setNewTestDifficulty(e.target.value)} className="p-2 border rounded-lg bg-slate-50 dark:bg-slate-700">
-                                    <option value="سهل">سهل</option>
-                                    <option value="متوسط">متوسط</option>
-                                    <option value="صعب">صعب</option>
+                          
+                          {/* Test Global Settings */}
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6 p-4 border rounded-xl bg-slate-50 dark:bg-slate-700">
+                              <input type="text" placeholder="عنوان الاختبار" value={newTestTitle} onChange={(e) => setNewTestTitle(e.target.value)} className="p-2 border rounded-lg bg-white dark:bg-slate-600" />
+                              <select value={newTestDifficulty} onChange={(e) => setNewTestDifficulty(e.target.value)} className="p-2 border rounded-lg bg-white dark:bg-slate-600">
+                                    <option value="سهل">صعوبة الاختبار الكلية: سهل</option>
+                                    <option value="متوسط">صعوبة الاختبار الكلية: متوسط</option>
+                                    <option value="صعب">صعوبة الاختبار الكلية: صعب</option>
                               </select>
-                              <input type="number" placeholder="المدة (دقائق)" value={newTestDuration} onChange={(e) => setNewTestDuration(e.target.value)} className="p-2 border rounded-lg bg-slate-50 dark:bg-slate-700" />
-                              <input type="number" placeholder="أقصى عدد محاولات" value={newTestMaxAttempts} onChange={(e) => setNewTestMaxAttempts(e.target.value)} className="p-2 border rounded-lg bg-slate-50 dark:bg-slate-700" />
-                              <input type="number" placeholder="النسبة المطلوبة (%)" value={newTestPrerequisite} onChange={(e) => setNewTestPrerequisite(e.target.value)} className="p-2 border rounded-lg bg-slate-50 dark:bg-slate-700" />
-                          </div>
-                          {newTestQuestions.map((q, qIndex) => (
-                              <div 
-                                key={q.id} 
-                                className="bg-slate-50 dark:bg-slate-700 p-4 rounded-lg mb-4 border dark:border-slate-600"
+                              <input type="number" placeholder="المدة (دقائق)" value={newTestDuration} onChange={(e) => setNewTestDuration(e.target.value)} className="p-2 border rounded-lg bg-white dark:bg-slate-600" />
+                              <input type="number" placeholder="أقصى عدد محاولات" value={newTestMaxAttempts} onChange={(e) => setNewTestMaxAttempts(e.target.value)} className="p-2 border rounded-lg bg-white dark:bg-slate-600" />
+                              <input type="number" placeholder="النسبة المطلوبة (%)" value={newTestPrerequisite} onChange={(e) => setNewTestPrerequisite(e.target.value)} className="p-2 border rounded-lg bg-white dark:bg-slate-600" />
+                              
+                              {/* NEW: Question Order Setting */}
+                              <select 
+                                value={newTestQuestionOrder} 
+                                onChange={(e) => setNewTestQuestionOrder(e.target.value)} 
+                                className="p-2 border rounded-lg bg-white dark:bg-slate-600"
                               >
-                                <div 
-                                    className="cursor-grab"
-                                    draggable
-                                    onDragStart={(e) => handleDragStart(e, qIndex)}
-                                    onDragEnter={(e) => handleDragEnter(e, qIndex)}
-                                >
-                                  <h4 className="font-bold mb-2">السؤال {qIndex + 1}</h4>
-                                  <textarea value={q.text} onChange={(e) => handleUpdateQuestion(qIndex, 'text', e.target.value)} placeholder="نص السؤال" className="w-full p-2 border rounded-lg mb-2 bg-white dark:bg-slate-600"></textarea>
-                                </div>
-                                  <input
-                                    type="text"
-                                    placeholder="أدخل رابط صورة للسؤال (اختياري)"
-                                    value={q.imageUrl}
-                                    onChange={(e) => handleUpdateQuestion(qIndex, 'imageUrl', e.target.value)}
-                                    className="w-full p-2 border rounded-lg mb-2 bg-white dark:bg-slate-600"
-                                  />
-                                  {q.imageUrl && <img src={q.imageUrl} className="w-32 h-32 object-cover rounded-lg my-2 mx-auto" alt="معاينة السؤال"/>}
-                                  
-                                  {q.options.map((opt, oIndex) => (
-                                      <div key={opt.id} className="flex items-center mb-2 bg-white dark:bg-slate-600 p-2 rounded-lg">
-                                          <input type="radio" name={`correct-answer-${q.id}`} checked={q.correctAnswer === opt.id} onChange={() => handleUpdateCorrectAnswer(qIndex, opt.id)} className="ml-2"/>
-                                          <input type="text" value={opt.text} onChange={(e) => handleUpdateOption(qIndex, oIndex, 'text', e.target.value)} placeholder={`الخيار ${String.fromCharCode(97 + oIndex)}`} className="p-2 border rounded-lg flex-grow bg-white dark:bg-slate-500"/>
-                                          <input type="text" placeholder="رابط صورة للخيار" value={opt.imageUrl} onChange={(e) => handleUpdateOption(qIndex, oIndex, 'imageUrl', e.target.value)} className="p-2 border rounded-lg w-1/3 ml-2 bg-white dark:bg-slate-500"/>
-                                          {opt.imageUrl && <img src={opt.imageUrl} className="w-16 h-16 object-cover rounded-md ml-2" alt="معاينة الخيار"/>}
-                                      </div>
-                                  ))}
-                                  <button onClick={() => handleDeleteQuestion(qIndex)} className="text-red-500 hover:text-red-700 text-xs mt-2">حذف السؤال</button>
-                              </div>
+                                    <option value="ordered">ترتيب الأسئلة: مرتب (حسب الإدخال)</option>
+                                    <option value="random">ترتيب الأسئلة: عشوائي</option>
+                              </select>
+                          </div>
+                          
+                          {/* Sections Builder */}
+                          <h4 className="text-xl font-bold mb-4 mt-8">بناء الأقسام ({totalQuestionsCount} سؤال إجمالي)</h4>
+                          {newTestSections.map((section, sIndex) => (
+                              <SectionBuilder
+                                  key={section.id}
+                                  section={section}
+                                  sectionIndex={sIndex}
+                                  onUpdateSection={handleUpdateSection}
+                                  onDeleteSection={handleDeleteSection}
+                                  onAddQuestion={handleAddQuestion}
+                                  onUpdateQuestion={handleUpdateQuestion}
+                                  onUpdateOption={handleUpdateOption}
+                                  onUpdateCorrectAnswer={handleUpdateCorrectAnswer}
+                                  onDeleteQuestion={handleDeleteQuestion}
+                              />
                           ))}
+                          
+                          <button onClick={handleAddSection} className="bg-blue-500 hover:bg-blue-600 text-white p-3 rounded-lg flex items-center justify-center gap-2 w-full mb-6">
+                              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clipRule="evenodd" /></svg>
+                              <span>إضافة قسم جديد</span>
+                          </button>
+                          
                           <div ref={saveButtonContainerRef} className="flex space-x-4 rtl:space-x-reverse">
-                              <button onClick={handleAddQuestion} className="bg-slate-200 dark:bg-slate-600 p-2 rounded-lg">إضافة سؤال</button>
                               <button onClick={handleSaveNewTest} className="bg-green-500 text-white p-2 rounded-lg">{editingTestId ? 'تحديث الاختبار' : 'حفظ الاختبار'}</button>
                               <button onClick={resetCreateTestForm} className="bg-red-500 text-white p-2 rounded-lg">إلغاء</button>
                           </div>
@@ -747,7 +914,7 @@
                                 {(testsByLevel[level.id] || []).map(test => (
                                      <div key={test.id} draggable={currentUser.role !== 'supervisor'} onDragStart={() => setDraggedTestId(test.id)} className="p-4 bg-white dark:bg-slate-600 rounded-lg border dark:border-slate-500 cursor-move">
                                         <h4 className="text-md font-bold">{test.title}</h4>
-                                        <p className="text-sm">{test.questions.length} أسئلة</p>
+                                        <p className="text-sm">{test.sections.reduce((acc, section) => acc + section.questions.length, 0)} أسئلة</p>
                                         <p className="text-xs text-slate-500 dark:text-slate-400">الصعوبة: {test.difficulty || 'متوسط'}</p>
                                         <div className="mt-2 grid grid-cols-2 gap-2">
                                             <button onClick={() => handlePreviewQuiz(test)} className="bg-blue-500 text-white p-1 rounded-md text-sm">معاينة</button>
@@ -774,7 +941,7 @@
                             {(testsByLevel['unassigned'] || []).map(test => (
                                 <div key={test.id} draggable={currentUser.role !== 'supervisor'} onDragStart={() => setDraggedTestId(test.id)} className="p-4 bg-white dark:bg-slate-600 rounded-lg border dark:border-slate-500 cursor-move">
                                     <h4 className="text-md font-bold">{test.title}</h4>
-                                    <p className="text-sm">{test.questions.length} أسئلة</p>
+                                    <p className="text-sm">{test.sections.reduce((acc, section) => acc + section.questions.length, 0)} أسئلة</p>
                                     <p className="text-xs text-slate-500 dark:text-slate-400">الصعوبة: {test.difficulty || 'متوسط'}</p>
                                      <div className="mt-2 grid grid-cols-2 gap-2">
                                         <button onClick={() => handlePreviewQuiz(test)} className="bg-blue-500 text-white p-1 rounded-md text-sm">معاينة</button>
@@ -1570,6 +1737,11 @@
             const newTestsData = { 'كمي': [], 'لفظي': [] };
             snapshot.forEach(doc => {
                 const test = { id: doc.id, ...doc.data() };
+                // Ensure the data structure uses 'sections'
+                if (!test.sections && test.questions) {
+                    test.sections = [{ id: 'default', title: 'القسم الأول', difficulty: test.difficulty || 'متوسط', questions: test.questions }];
+                    delete test.questions;
+                }
                 if (newTestsData[test.category]) {
                     newTestsData[test.category].push(test);
                 }
@@ -1635,9 +1807,15 @@
       const [newTestDuration, setNewTestDuration] = useState('');
       const [newTestMaxAttempts, setNewTestMaxAttempts] = useState('');
       const [newTestPrerequisite, setNewTestPrerequisite] = useState('');
-      const [newTestQuestions, setNewTestQuestions] = useState([]);
+      
+      // Changed from newTestQuestions to newTestSections
+      const [newTestSections, setNewTestSections] = useState([]);
+      
       const [newTestCategory, setNewTestCategory] = useState('كمي');
       const [newTestDifficulty, setNewTestDifficulty] = useState('متوسط');
+      // NEW: Question Order
+      const [newTestQuestionOrder, setNewTestQuestionOrder] = useState('ordered'); 
+
       const [previewQuiz, setPreviewQuiz] = useState(null);
 
       // State for Import/Export
@@ -1663,6 +1841,32 @@
       const dragOverTest = useRef(null);
       const dragItem = useRef();
       const dragOverItem = useRef();
+
+      // Utility function to flatten questions from sections
+      const flattenQuestions = (sections) => {
+          if (!sections) return [];
+          return sections.flatMap(section => section.questions || []);
+      };
+      
+      // Utility function to get question by its global index
+      const getQuestionByGlobalIndex = (test, globalIndex) => {
+          return flattenQuestions(test.sections)[globalIndex];
+      };
+      
+      // Utility function to shuffle questions in sections
+      const shuffleTestQuestions = (test) => {
+          if (!test.sections) return test;
+          
+          if (test.questionOrder === 'random') {
+              const shuffledSections = test.sections.map(section => ({
+                  ...section,
+                  questions: [...section.questions].sort(() => Math.random() - 0.5)
+              }));
+              return { ...test, sections: shuffledSections };
+          }
+          // If 'ordered', no need to shuffle, return as is.
+          return test;
+      };
 
       useEffect(() => {
         if (darkMode) {
@@ -1854,9 +2058,9 @@
         const allTests = [...(testsData['كمي'] || []), ...(testsData['لفظي'] || [])];
         const test = allTests.find(t => t.id === testId);
         
-        const shuffledQuestions = [...test.questions].sort(() => Math.random() - 0.5);
-        const testWithShuffledQuestions = { ...test, questions: shuffledQuestions };
-
+        // Apply question order setting before starting
+        const testWithShuffledQuestions = shuffleTestQuestions(test);
+        
         const currentUserData = usersData.find(u => u.username === currentUser.username);
         if (!currentUserData) return;
         
@@ -1887,16 +2091,22 @@
         if (!currentUserData || !currentUserData.incorrectQuestions || currentUserData.incorrectQuestions.length === 0) {
             return;
         }
-
+        
+        const incorrectTestQuestions = currentUserData.incorrectQuestions;
+        // Group incorrect questions into a single section for the test
         const incorrectTest = {
             id: 'incorrect_questions_test',
             title: 'الأسئلة الصعبة',
-            questions: currentUserData.incorrectQuestions,
-            duration: currentUserData.incorrectQuestions.length, // 1 minute per question
-            isIncorrectTest: true
+            sections: [{ id: 'hard', title: 'الأسئلة الصعبة التي أخطأت فيها', difficulty: 'صعب', questions: incorrectTestQuestions }],
+            duration: incorrectTestQuestions.length, // 1 minute per question
+            isIncorrectTest: true,
+            questionOrder: 'random' // Always shuffle the difficult questions
         };
         
-        setSelectedTest(incorrectTest);
+        // Since it's 'random', we apply shuffle immediately
+        const testWithShuffledQuestions = shuffleTestQuestions(incorrectTest);
+
+        setSelectedTest(testWithShuffledQuestions);
         setAnswers({});
         setQuizSubmitted(false);
         setTimer(incorrectTest.duration * 60);
@@ -1905,7 +2115,9 @@
     };
 
       const handleNextQuestion = () => {
-        if (currentQuestionIndex < selectedTest.questions.length - 1) {
+        // Use the total number of questions flattened from sections
+        const totalQuestions = flattenQuestions(selectedTest.sections).length;
+        if (currentQuestionIndex < totalQuestions - 1) {
           setCurrentQuestionIndex(prevIndex => prevIndex + 1);
         }
       };
@@ -1925,9 +2137,12 @@
         setQuizSubmitted(true);
         const userToUpdate = usersData.find(user => user.username === currentUser.username);
         const userRef = window.firebase.doc(db, "users", userToUpdate.id);
+        
+        // Flatten the questions from the test for scoring and tracking
+        const questionsInTest = flattenQuestions(selectedTest.sections);
 
         if (selectedTest.isIncorrectTest) {
-            const correctlyAnsweredIds = selectedTest.questions
+            const correctlyAnsweredIds = questionsInTest
                 .filter(q => answers[q.id] === q.correctAnswer)
                 .map(q => q.id);
 
@@ -1936,13 +2151,17 @@
                 incorrectQuestions: remainingIncorrect
             });
         } else {
-            const incorrectQuestionsFromThisTest = selectedTest.questions
-                .filter(q => answers[q.id] !== q.correctAnswer);
+            // Logic for a regular test submission
+            const incorrectQuestionsFromThisTest = questionsInTest
+                // Check if the question was marked as isDifficult OR if the user answered it incorrectly
+                .filter(q => q.isDifficult || answers[q.id] !== q.correctAnswer);
 
             const existingIncorrectIds = new Set((userToUpdate.incorrectQuestions || []).map(q => q.id));
+            
+            // Only add new incorrect/difficult questions to the user's hard list
             const newIncorrectQuestions = incorrectQuestionsFromThisTest.filter(q => !existingIncorrectIds.has(q.id));
 
-            const score = selectedTest.questions.filter(q => answers[q.id] === q.correctAnswer).length;
+            const score = questionsInTest.filter(q => answers[q.id] === q.correctAnswer).length;
             const timeTaken = selectedTest.duration * 60 - timer;
 
             const newAttemptsLeft = (userToUpdate.attemptsLeft[selectedTest.id] !== undefined
@@ -1951,7 +2170,7 @@
 
             const newScoreData = {
                 score: score,
-                total: selectedTest.questions.length,
+                total: questionsInTest.length,
                 date: new Date().toLocaleDateString('ar-SA'),
                 time: new Date().toLocaleTimeString('ar-SA'),
                 timeTaken: timeTaken
@@ -1966,6 +2185,7 @@
             await window.firebase.updateDoc(userRef, {
                 scores: updatedScores,
                 [`attemptsLeft.${selectedTest.id}`]: newAttemptsLeft,
+                // Preserve existing incorrect questions and add new ones
                 incorrectQuestions: [...(userToUpdate.incorrectQuestions || []), ...newIncorrectQuestions]
             });
         }
@@ -1986,21 +2206,6 @@
         setUserScoresToShow(null);
       };
 
-      const handleDragStart = (e, position) => {
-        dragItem.current = position;
-      };
-
-      const handleDragEnter = (e, position) => {
-        dragOverItem.current = position;
-        const list = [...newTestQuestions];
-        const dragItemContent = list[dragItem.current];
-        list.splice(dragItem.current, 1);
-        list.splice(dragOverItem.current, 0, dragItemContent);
-        dragItem.current = dragOverItem.current;
-        dragOverItem.current = null;
-        setNewTestQuestions(list);
-      };
-      
       const handleTestSort = () => {
         if (dragTest.current === null || dragOverTest.current === null) return;
 
@@ -2016,72 +2221,116 @@
         dragTest.current = null;
         dragOverTest.current = null;
     };
+    
+    // --- Section Management Handlers ---
 
-      const handleAddQuestion = () => {
-        setNewTestQuestions([...newTestQuestions, {
-          id: Date.now(),
-          text: '',
-          imageUrl: '',
-          type: 'mcq',
-          options: [
+    const addDefaultSection = () => ({
+        id: Date.now(),
+        title: 'قسم جديد',
+        difficulty: 'متوسط',
+        questions: []
+    });
+    
+    const handleAddSection = () => {
+        setNewTestSections(prev => [...prev, addDefaultSection()]);
+    };
+    
+    const handleUpdateSection = (sIndex, field, value) => {
+        const updatedSections = [...newTestSections];
+        updatedSections[sIndex][field] = value;
+        setNewTestSections(updatedSections);
+    };
+    
+    const handleDeleteSection = (sIndex) => {
+        if (newTestSections.length <= 1) {
+            alert('لا يمكن حذف القسم الوحيد. يجب أن يحتوي الاختبار على قسم واحد على الأقل.');
+            return;
+        }
+        const updatedSections = [...newTestSections];
+        updatedSections.splice(sIndex, 1);
+        setNewTestSections(updatedSections);
+    };
+
+    const createNewQuestion = () => ({
+        id: Date.now(),
+        text: '',
+        imageUrl: '',
+        type: 'mcq',
+        isDifficult: false, // New field
+        options: [
             { id: 'a', text: '', imageUrl: '' },
             { id: 'b', text: '', imageUrl: '' },
             { id: 'c', text: '', imageUrl: '' },
             { id: 'd', text: '', imageUrl: '' }
-          ],
-          correctAnswer: 'a'
-        }]);
-      };
+        ],
+        correctAnswer: 'a'
+    });
 
-      const handleUpdateQuestion = (qIndex, field, value) => {
-        const updatedQuestions = [...newTestQuestions];
-        updatedQuestions[qIndex][field] = value;
-        setNewTestQuestions(updatedQuestions);
-      };
-      
-      const handleDeleteQuestion = (qIndex) => {
-        const updatedQuestions = [...newTestQuestions];
-        updatedQuestions.splice(qIndex, 1);
-        setNewTestQuestions(updatedQuestions);
-      };
-      
-      const handleUpdateCorrectAnswer = (qIndex, value) => {
-        const updatedQuestions = [...newTestQuestions];
-        updatedQuestions[qIndex].correctAnswer = value;
-        setNewTestQuestions(updatedQuestions);
-      };
+    const handleAddQuestion = (sIndex) => {
+        const updatedSections = [...newTestSections];
+        updatedSections[sIndex].questions.push(createNewQuestion());
+        setNewTestSections(updatedSections);
+    };
 
-      const handleUpdateOption = (qIndex, oIndex, field, value) => {
-        const updatedQuestions = [...newTestQuestions];
-        updatedQuestions[qIndex].options[oIndex][field] = value;
-        setNewTestQuestions(updatedQuestions);
-      };
-      
-      const resetCreateTestForm = () => {
-          setNewTestTitle('');
-          setNewTestDuration('');
-          setNewTestMaxAttempts('');
-          setNewTestPrerequisite('');
-          setNewTestDifficulty('متوسط');
-          setNewTestQuestions([]);
-          setShowCreateTestForm(false);
-          setEditingTestId(null);
-      }
+    const handleUpdateQuestion = (sIndex, qIndex, field, value) => {
+        const updatedSections = [...newTestSections];
+        updatedSections[sIndex].questions[qIndex][field] = value;
+        setNewTestSections(updatedSections);
+    };
+    
+    const handleDeleteQuestion = (sIndex, qIndex) => {
+        const updatedSections = [...newTestSections];
+        updatedSections[sIndex].questions.splice(qIndex, 1);
+        setNewTestSections(updatedSections);
+    };
+    
+    const handleUpdateCorrectAnswer = (sIndex, qIndex, value) => {
+        const updatedSections = [...newTestSections];
+        updatedSections[sIndex].questions[qIndex].correctAnswer = value;
+        setNewTestSections(updatedSections);
+    };
 
-      const handleSaveNewTest = async () => {
-        if (!newTestTitle || !newTestDuration || !newTestMaxAttempts || newTestQuestions.length === 0) return;
+    const handleUpdateOption = (sIndex, qIndex, oIndex, field, value) => {
+        const updatedSections = [...newTestSections];
+        updatedSections[sIndex].questions[qIndex].options[oIndex][field] = value;
+        setNewTestSections(updatedSections);
+    };
+    
+    // --- End Section Management Handlers ---
+      
+    const resetCreateTestForm = () => {
+        setNewTestTitle('');
+        setNewTestDuration('');
+        setNewTestMaxAttempts('');
+        setNewTestPrerequisite('');
+        setNewTestDifficulty('متوسط');
+        setNewTestQuestionOrder('ordered'); // Reset order
+        setNewTestSections([addDefaultSection()]); // Reset to single default section
+        setShowCreateTestForm(false);
+        setEditingTestId(null);
+    }
+
+    const handleSaveNewTest = async () => {
+        if (!newTestTitle || !newTestDuration || !newTestMaxAttempts) return;
         
-        const originalTest = editingTestId ? [...testsData['كمي'], ...testsData['لفظي']].find(t => t.id === editingTestId) : null;
+        const totalQuestions = newTestSections.reduce((acc, section) => acc + (section.questions?.length || 0), 0);
+        if (totalQuestions === 0) {
+            alert('يجب أن يحتوي الاختبار على سؤال واحد على الأقل.');
+            return;
+        }
+
+        const originalTest = editingTestId ? allTests.find(t => t.id === editingTestId) : null;
 
         const newTest = {
-          title: newTestTitle,
-          category: newTestCategory,
-          duration: parseInt(newTestDuration, 10),
-          maxAttempts: parseInt(newTestMaxAttempts, 10),
-          prerequisitePercentage: parseInt(newTestPrerequisite, 10) || 0,
-          difficulty: newTestDifficulty,
-          questions: newTestQuestions,
-          levelId: originalTest ? originalTest.levelId : null // Preserve the levelId
+            title: newTestTitle,
+            category: newTestCategory,
+            duration: parseInt(newTestDuration, 10),
+            maxAttempts: parseInt(newTestMaxAttempts, 10),
+            prerequisitePercentage: parseInt(newTestPrerequisite, 10) || 0,
+            difficulty: newTestDifficulty,
+            sections: newTestSections, // Save the section structure
+            questionOrder: newTestQuestionOrder, // Save question order setting
+            levelId: originalTest ? originalTest.levelId : null 
         };
 
         if(editingTestId) {
@@ -2090,23 +2339,28 @@
             await window.firebase.addDoc(window.firebase.collection(db, "tests"), newTest);
         }
         resetCreateTestForm();
-      };
+    };
 
-      const handleEditTest = (testToEdit, category) => {
+    const handleEditTest = (testToEdit, category) => {
         setEditingTestId(testToEdit.id);
         setNewTestTitle(testToEdit.title);
         setNewTestDuration(testToEdit.duration.toString());
         setNewTestMaxAttempts(testToEdit.maxAttempts.toString());
         setNewTestPrerequisite(testToEdit.prerequisitePercentage?.toString() || '0');
         setNewTestDifficulty(testToEdit.difficulty || 'متوسط');
-        setNewTestQuestions(JSON.parse(JSON.stringify(testToEdit.questions)));
+        setNewTestQuestionOrder(testToEdit.questionOrder || 'ordered'); // Load question order setting
+
+        // Ensure we load the sections correctly. If it's an old test without sections, create one default section.
+        let sectionsToLoad = testToEdit.sections || (testToEdit.questions ? [{ id: 'default', title: 'القسم الأول', difficulty: testToEdit.difficulty || 'متوسط', questions: testToEdit.questions }] : [addDefaultSection()]);
+        
+        setNewTestSections(JSON.parse(JSON.stringify(sectionsToLoad)));
         setNewTestCategory(category);
         setShowCreateTestForm(true);
 
         setTimeout(() => {
             createTestFormRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
         }, 100);
-      };
+    };
       
       const handleAddNewLevel = async (levelName, category) => {
         if (levelName.trim() === '') return;
@@ -2134,16 +2388,23 @@
               maxAttempts: test.maxAttempts,
               prerequisitePercentage: test.prerequisitePercentage || 0,
               difficulty: test.difficulty || 'متوسط',
-              questions: test.questions.map(q => ({
-                  text: q.text,
-                  imageUrl: q.imageUrl || '',
-                  type: q.type,
-                  options: q.options.map(o => ({
-                      id: o.id,
-                      text: o.text,
-                      imageUrl: o.imageUrl || ''
+              questionOrder: test.questionOrder || 'ordered', // Export order setting
+              sections: test.sections.map(section => ({
+                  id: section.id,
+                  title: section.title,
+                  difficulty: section.difficulty,
+                  questions: section.questions.map(q => ({
+                      text: q.text,
+                      imageUrl: q.imageUrl || '',
+                      type: q.type,
+                      isDifficult: q.isDifficult || false, // Export difficulty flag
+                      options: q.options.map(o => ({
+                          id: o.id,
+                          text: o.text,
+                          imageUrl: o.imageUrl || ''
+                      })),
+                      correctAnswer: q.correctAnswer
                   })),
-                  correctAnswer: q.correctAnswer
               })),
           };
 
@@ -2173,17 +2434,21 @@
               try {
                   const importedData = JSON.parse(e.target.result);
                   
-                  if (!importedData.title || !importedData.questions || !importedData.category) {
+                  if (!importedData.title || !importedData.sections || !importedData.category) {
                       alert("ملف JSON غير صالح أو يفتقد للحقول المطلوبة.");
                       return;
                   }
                   
-                  const processedQuestions = importedData.questions.map((q, i) => ({
-                      ...q,
-                      id: q.id || Date.now() + i,
-                      options: q.options.map((o, j) => ({
-                          ...o,
-                          id: o.id || String.fromCharCode(97 + j)
+                  const processedSections = importedData.sections.map(section => ({
+                      ...section,
+                      id: section.id || Date.now() + Math.random(),
+                      questions: section.questions.map((q, i) => ({
+                          ...q,
+                          id: q.id || Date.now() + i + Math.random(),
+                          options: q.options.map((o, j) => ({
+                              ...o,
+                              id: o.id || String.fromCharCode(97 + j)
+                          }))
                       }))
                   }));
 
@@ -2194,7 +2459,8 @@
                       maxAttempts: parseInt(importedData.maxAttempts, 10) || 3,
                       prerequisitePercentage: parseInt(importedData.prerequisitePercentage, 10) || 0,
                       difficulty: importedData.difficulty || 'متوسط',
-                      questions: processedQuestions,
+                      questionOrder: importedData.questionOrder || 'ordered', // Import order setting
+                      sections: processedSections, // Use sections
                       levelId: null
                   };
 
@@ -2298,12 +2564,16 @@
       };
 
       const handlePreviewQuiz = (test) => {
-        setPreviewQuiz(JSON.parse(JSON.stringify(test)));
+        // Flatten questions for preview logic
+        const flattenedQuestions = flattenQuestions(test.sections);
+        setPreviewQuiz({ ...test, questions: flattenedQuestions, totalQuestions: flattenedQuestions.length });
         setCurrentPage('preview');
       };
       
       const handlePaperPreview = (test) => {
-        setPaperPreviewTest(test);
+        // Flatten questions for paper preview logic
+        const flattenedQuestions = flattenQuestions(test.sections);
+        setPaperPreviewTest({ ...test, questions: flattenedQuestions });
         setCurrentPage('paperPreview');
       };
 
@@ -2458,14 +2728,21 @@
                           setNewTestPrerequisite={setNewTestPrerequisite}
                           newTestDifficulty={newTestDifficulty}
                           setNewTestDifficulty={setNewTestDifficulty}
-                          newTestQuestions={newTestQuestions}
-                          handleDragStart={handleDragStart}
-                          handleDragEnter={handleDragEnter}
+                          // Updated props
+                          newTestSections={newTestSections}
+                          setNewTestSections={setNewTestSections}
+                          handleUpdateSection={handleUpdateSection}
+                          handleDeleteSection={handleDeleteSection}
+                          handleAddSection={handleAddSection}
+                          handleAddQuestion={handleAddQuestion}
                           handleUpdateQuestion={handleUpdateQuestion}
                           handleUpdateOption={handleUpdateOption}
                           handleUpdateCorrectAnswer={handleUpdateCorrectAnswer}
                           handleDeleteQuestion={handleDeleteQuestion}
-                          handleAddQuestion={handleAddQuestion}
+                          // NEW: Question Order
+                          newTestQuestionOrder={newTestQuestionOrder}
+                          setNewTestQuestionOrder={setNewTestQuestionOrder}
+                          // End Updated props
                           handleSaveNewTest={handleSaveNewTest}
                           resetCreateTestForm={resetCreateTestForm}
                           testsData={testsData}
@@ -2596,10 +2873,12 @@
                                             const attemptsLeft = currentUserData.attemptsLeft[test.id] !== undefined ? currentUserData.attemptsLeft[test.id] : test.maxAttempts;
                                             const prerequisite = test.prerequisitePercentage || 0;
                                             const isLocked = overallPercentage < prerequisite;
+                                            const questionCount = flattenQuestions(test.sections).length;
 
                                             return (
                                                 <div key={test.id} className={`p-4 rounded-lg border ${isLocked ? 'bg-slate-200 dark:bg-slate-700' : 'bg-slate-50 dark:bg-slate-600'} dark:border-slate-500`}>
                                                     <h3 className="text-lg font-bold">{test.title}</h3>
+                                                    <p>عدد الأسئلة: {questionCount}</p>
                                                     <p>المدة: {test.duration} دقيقة</p>
                                                     <p>المحاولات المتبقية: {attemptsLeft}</p>
                                                     {isLocked && <p className="text-sm text-red-500 mt-1">مغلق (يتطلب {prerequisite}% للوصول)</p>}
@@ -2691,6 +2970,7 @@
 
       const renderPreviewPage = () => {
         if (!previewQuiz) return null;
+        // Use the flattened questions array saved in previewQuiz
         const question = previewQuiz.questions[currentQuestionIndex];
         const isFirstQuestion = currentQuestionIndex === 0;
         const isLastQuestion = currentQuestionIndex === previewQuiz.questions.length - 1;
@@ -2735,6 +3015,9 @@
       
       const renderPaperPreviewPage = () => {
         if (!paperPreviewTest) return null;
+        
+        // paperPreviewTest.questions is already flattened
+        const flattenedQuestions = paperPreviewTest.questions;
 
         return (
           <div className="bg-slate-200 dark:bg-slate-900 min-h-screen py-10" dir="rtl">
@@ -2752,7 +3035,7 @@
                     <p className="text-lg">المدة: {paperPreviewTest.duration} دقيقة</p>
                 </div>
                 <div className="space-y-8">
-                    {paperPreviewTest.questions.map((question, qIndex) => (
+                    {flattenedQuestions.map((question, qIndex) => (
                         <div key={question.id} className="question-block" style={{breakInside: 'avoid-page'}}>
                             <div className="flex items-start mb-4">
                                 <span className="font-bold ml-2">{qIndex + 1}.</span>
@@ -2807,62 +3090,78 @@
                     <p className="text-lg">{withAnswers ? 'مع نموذج الإجابة' : 'بدون نموذج إجابة'}</p>
                 </div>
                 <div className="tests-container space-y-12">
-                    {tests.map((test, testIndex) => (
+                    {tests.map((test, testIndex) => {
+                        let globalQIndex = 0; // Reset global index for each test
+                        return (
                         <div key={test.id} className="test-block" style={{breakInside: 'avoid-page', pageBreakAfter: 'auto'}}>
                             <h2 className="font-bold border-b-2 border-gray-400 pb-2 mb-4">{testIndex + 1} - {test.title}</h2>
-                            <div className="space-y-6">
-                                {test.questions.map((question, qIndex) => (
-                                    <div key={question.id} className="question-block" style={{breakInside: 'avoid'}}>
-                                        <div className="flex items-start mb-2">
-                                            <span className="font-bold ml-2">{qIndex + 1}.</span>
-                                             <div className="flex-1">
-                                                <p className="font-semibold question-text"><MathComponent text={question.text} /></p>
-                                                {question.imageUrl && <img src={question.imageUrl} alt={`صورة للسؤال`} className="max-w-[200px] my-2 rounded"/>}
-                                            </div>
-                                        </div>
-                                        <div className="grid grid-cols-2 gap-x-8 gap-y-2 pr-6 options-grid">
-                                            {question.options.map((option, oIndex) => {
-                                                const optionLabels = ['أ', 'ب', 'ج', 'د'];
-                                                return (
-                                                    <div key={option.id} className="flex items-center">
-                                                        <span className="font-bold w-6 mr-2">{optionLabels[oIndex]})</span>
-                                                        <div className="flex-1">
-                                                            {option.imageUrl ? (
-                                                                <img src={option.imageUrl} className="max-w-[70px] max-h-[70px] rounded" />
-                                                            ) : (
-                                                                <p><MathComponent text={option.text} /></p>
-                                                            )}
+                            {test.sections.map((section, sIndex) => (
+                                <div key={section.id} className="section-block mb-8">
+                                    <h3 className="font-semibold text-base text-gray-700 mt-4 mb-2">{section.title}</h3>
+                                    <div className="space-y-6">
+                                        {section.questions.map((question, qIndex) => {
+                                            globalQIndex++; // Increment global question counter
+                                            const displayIndex = globalQIndex;
+                                            const optionLabels = ['أ', 'ب', 'ج', 'د'];
+                                            
+                                            return (
+                                                <div key={question.id} className="question-block" style={{breakInside: 'avoid'}}>
+                                                    <div className="flex items-start mb-2">
+                                                        <span className="font-bold ml-2">{displayIndex}.</span>
+                                                         <div className="flex-1">
+                                                            <p className="font-semibold question-text"><MathComponent text={question.text} /></p>
+                                                            {question.imageUrl && <img src={question.imageUrl} alt={`صورة للسؤال`} className="max-w-[200px] my-2 rounded"/>}
                                                         </div>
                                                     </div>
-                                                );
-                                            })}
-                                        </div>
+                                                    <div className="grid grid-cols-2 gap-x-8 gap-y-2 pr-6 options-grid">
+                                                        {question.options.map((option, oIndex) => {
+                                                            return (
+                                                                <div key={option.id} className="flex items-center">
+                                                                    <span className="font-bold w-6 mr-2">{optionLabels[oIndex]})</span>
+                                                                    <div className="flex-1">
+                                                                        {option.imageUrl ? (
+                                                                            <img src={option.imageUrl} className="max-w-[70px] max-h-[70px] rounded" />
+                                                                        ) : (
+                                                                            <p><MathComponent text={option.text} /></p>
+                                                                        )}
+                                                                    </div>
+                                                                </div>
+                                                            );
+                                                        })}
+                                                    </div>
+                                                </div>
+                                            );
+                                        })}
                                     </div>
-                                ))}
-                            </div>
+                                </div>
+                            ))}
                         </div>
-                    ))}
+                    )})}
                 </div>
 
                 {withAnswers && (
                     <div className="answer-key" style={{pageBreakBefore: 'always'}}>
                          <h1 className="font-bold mb-8 text-center border-b-2 border-black pb-4">نموذج الإجابة</h1>
-                         {tests.map((test, testIndex) => (
+                         {tests.map((test, testIndex) => {
+                             let globalAnsIndex = 0;
+                             const allQuestions = flattenQuestions(test.sections);
+                             return (
                              <div key={`ans-${test.id}`} className="mb-8" style={{breakInside: 'avoid'}}>
                                  <h2 className="font-semibold mb-4">{testIndex + 1} - {test.title}</h2>
                                  <div className="grid grid-cols-5 md:grid-cols-10 gap-2 text-center">
-                                     {test.questions.map((q, qIndex) => {
+                                     {allQuestions.map((q) => {
+                                         globalAnsIndex++;
                                          const optionLabels = ['أ', 'ب', 'ج', 'د'];
                                          const correctOptionIndex = q.options.findIndex(opt => opt.id === q.correctAnswer);
                                          return (
                                             <div key={`ans-item-${q.id}`} className="p-1 border rounded">
-                                               <span className="font-bold">{qIndex + 1}:</span> {optionLabels[correctOptionIndex] || 'N/A'}
+                                               <span className="font-bold">{globalAnsIndex}:</span> {optionLabels[correctOptionIndex] || 'N/A'}
                                             </div>
                                          );
                                      })}
                                  </div>
                              </div>
-                         ))}
+                         )})}
                     </div>
                 )}
 
@@ -2873,9 +3172,29 @@
 
       const renderTestPage = () => {
         if (!selectedTest) return null;
-        const question = selectedTest.questions[currentQuestionIndex];
+        
+        // Use the total number of questions flattened from sections
+        const questionsInTest = flattenQuestions(selectedTest.sections);
+        const totalQuestions = questionsInTest.length;
+        const question = questionsInTest[currentQuestionIndex];
+        
         const isFirstQuestion = currentQuestionIndex === 0;
-        const isLastQuestion = currentQuestionIndex === selectedTest.questions.length - 1;
+        const isLastQuestion = currentQuestionIndex === totalQuestions - 1;
+
+        // Find the section title for display purposes
+        let sectionTitle = "بدون قسم";
+        let questionNumberInSection = 0;
+        let runningTotal = 0;
+        for (const section of selectedTest.sections) {
+            const sectionQuestions = section.questions || [];
+            if (currentQuestionIndex < runningTotal + sectionQuestions.length) {
+                sectionTitle = section.title;
+                questionNumberInSection = currentQuestionIndex - runningTotal + 1;
+                break;
+            }
+            runningTotal += sectionQuestions.length;
+        }
+
 
         return (
           <div className="flex flex-col items-center min-h-screen p-4" dir="rtl">
@@ -2898,11 +3217,21 @@
                   </div>
                 </div>
               </div>
+              
+              <div className="text-center mb-4 p-2 bg-indigo-50 dark:bg-indigo-900/50 rounded-lg">
+                <p className="font-semibold text-indigo-700 dark:text-indigo-300">
+                    القسم الحالي: {sectionTitle}
+                </p>
+                <p className="text-sm text-slate-500 dark:text-slate-400">
+                    السؤال {questionNumberInSection} من القسم - السؤال {currentQuestionIndex + 1} من {totalQuestions} إجمالي
+                </p>
+              </div>
+
 
               <div className="bg-slate-50 dark:bg-slate-700 p-6 rounded-xl shadow-inner mb-6 border border-slate-200 dark:border-slate-600">
                 {question.imageUrl && <img src={question.imageUrl} alt={`صورة للسؤال رقم ${currentQuestionIndex + 1}`} className="w-full max-h-60 object-contain rounded-lg mb-4"/>}
                 <p className="text-lg font-semibold text-slate-900 dark:text-white mb-4">
-                  {currentQuestionIndex + 1}. {question.text}
+                  {currentQuestionIndex + 1}. <MathComponent text={question.text} />
                 </p>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   {question.options.map(option => (
@@ -2935,9 +3264,12 @@
 
       const renderResultsPage = () => {
         if (!selectedTest) return null;
+        
+        // Flatten questions for results
+        const questionsInTest = flattenQuestions(selectedTest.sections);
         let score = 0;
-        let totalQuestions = selectedTest.questions.length;
-        selectedTest.questions.forEach(q => {
+        let totalQuestions = questionsInTest.length;
+        questionsInTest.forEach(q => {
           if (answers[q.id] === q.correctAnswer) score++;
         });
         
@@ -2974,7 +3306,7 @@
               </div>
               
               <div className="text-right">
-                {selectedTest.questions.map((question, qIndex) => (
+                {questionsInTest.map((question, qIndex) => (
                   <div key={question.id} className="bg-slate-50 dark:bg-slate-700 p-6 rounded-xl shadow-inner mb-6 border border-slate-200 dark:border-slate-600 text-right">
                     {question.imageUrl && <img src={question.imageUrl} alt={`صورة للسؤال رقم ${qIndex + 1}`} className="w-full max-h-60 object-contain rounded-lg mb-4"/>}
                     <p className="text-lg font-semibold text-slate-900 dark:text-white mb-2">
@@ -2987,6 +3319,11 @@
                       <p>
                         <span className="font-bold text-green-600 dark:text-green-400">الإجابة الصحيحة:</span> <MathComponent text={question.options.find(opt => opt.id === question.correctAnswer)?.text} />
                       </p>
+                      {question.isDifficult && (
+                           <p className="mt-2 text-red-500 text-sm font-semibold">
+                               (تم تحديد هذا السؤال كسؤال صعب)
+                           </p>
+                      )}
                     </div>
                   </div>
                 ))}
@@ -3108,4 +3445,3 @@
   </script>
 </body>
 </html>
-
